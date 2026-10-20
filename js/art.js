@@ -1,0 +1,95 @@
+/* art.js — card faces and backs, drawn as SVG for this site (original art, no publisher designs).
+ * A card face is 250 x 350 units. Big corner indexes so a half-hidden card in a fanned hand
+ * still reads at phone size; standard pip layouts for 2-10; framed court cards with a crown
+ * (king), tiara (queen) or cap (jack). Suit shapes live once in the page (<symbol id="suit-N">). */
+(function (root) {
+  "use strict";
+  const C = root.Cards;
+  const RED = "#c8372a", BLACK = "#1b1d26";
+  const col = (s) => (s === 1 || s === 3 ? RED : BLACK);
+
+  // Pip centres (x, y) for ranks 2..10; pips below the middle are drawn upside down.
+  const L = 82, M = 125, R = 168;
+  const PIPS = {
+    2: [[M, 92], [M, 258]],
+    3: [[M, 92], [M, 175], [M, 258]],
+    4: [[L, 92], [R, 92], [L, 258], [R, 258]],
+    5: [[L, 92], [R, 92], [M, 175], [L, 258], [R, 258]],
+    6: [[L, 92], [R, 92], [L, 175], [R, 175], [L, 258], [R, 258]],
+    7: [[L, 92], [R, 92], [M, 133], [L, 175], [R, 175], [L, 258], [R, 258]],
+    8: [[L, 92], [R, 92], [M, 133], [L, 175], [R, 175], [M, 217], [L, 258], [R, 258]],
+    9: [[L, 92], [R, 92], [L, 147], [R, 147], [M, 175], [L, 203], [R, 203], [L, 258], [R, 258]],
+    10: [[L, 92], [R, 92], [M, 120], [L, 147], [R, 147], [L, 203], [R, 203], [M, 230], [L, 258], [R, 258]],
+  };
+
+  const use = (s, x, y, size, flip) =>
+    `<use href="#suit-${s}" x="${x - size / 2}" y="${y - size / 2}" width="${size}" height="${size}"${flip ? ` transform="rotate(180 ${x} ${y})"` : ""}/>`;
+
+  function corner(s, r) {
+    const label = C.RANK_NAMES[r];
+    const ten = label === "10";
+    return `<text x="${ten ? 40 : 38}" y="70" text-anchor="middle" font-size="${ten ? 58 : 66}" font-weight="800" font-family="Georgia, 'Times New Roman', serif" letter-spacing="${ten ? -5 : 0}">${label}</text>` +
+      use(s, 38, 106, 42);
+  }
+
+  function crown(kind, c) {
+    if (kind === "K") return `<path d="M88 116l12-30 16 22 9-30 9 30 16-22 12 30z" fill="${c}" opacity=".9"/><rect x="88" y="116" width="74" height="10" rx="3" fill="#d9a531"/>`;
+    if (kind === "Q") return `<path d="M95 120c10-10 20-14 30-24 10 10 20 14 30 24z" fill="#d9a531"/><circle cx="125" cy="92" r="6" fill="${c}"/><circle cx="104" cy="108" r="4" fill="${c}"/><circle cx="146" cy="108" r="4" fill="${c}"/>`;
+    return `<path d="M92 122c4-22 22-34 40-30 10 2 18 10 22 20-14-4-26 0-34 10z" fill="${c}" opacity=".9"/><path d="M150 100c10-14 16-20 30-22-6 8-12 16-22 26z" fill="#d9a531"/>`;
+  }
+
+  function face(card) {
+    const s = C.suit(card), r = C.rank(card), c = col(s);
+    let mid = "";
+    if (r <= 8) {
+      for (const [x, y] of PIPS[r + 2]) mid += use(s, x, y, 46, y > 175);
+    } else if (r === 12) {
+      mid = (s === 2 ? `<circle cx="125" cy="175" r="68" fill="none" stroke="${c}" stroke-width="3" opacity=".35"/>` : "") + use(s, 125, 175, s === 2 ? 104 : 92);
+    } else {
+      const k = C.RANK_NAMES[r];
+      const tint = c === RED ? "#f6ddd5" : "#dfe4f0";
+      mid = `<rect x="58" y="70" width="134" height="210" rx="12" fill="${tint}" stroke="${c}" stroke-width="3"/>` +
+        `<rect x="66" y="78" width="118" height="194" rx="8" fill="none" stroke="#d9a531" stroke-width="2"/>` +
+        crown(k, c) +
+        `<text x="125" y="214" text-anchor="middle" font-size="92" font-weight="700" font-family="Georgia, 'Times New Roman', serif" fill="${c}">${k}</text>` +
+        use(s, 125, 250, 34);
+    }
+    return `<svg viewBox="0 0 250 350" fill="${c}" aria-hidden="true">` +
+      `<rect x="1.5" y="1.5" width="247" height="347" rx="17" fill="#f6f2e8" stroke="#d4ccbb" stroke-width="3"/>` +
+      corner(s, r) + `<g transform="rotate(180 125 175)">${corner(s, r)}</g>` + mid + `</svg>`;
+  }
+
+  const BACK = `<svg viewBox="0 0 250 350" aria-hidden="true">` +
+    `<rect x="1.5" y="1.5" width="247" height="347" rx="17" fill="#1d2a4a" stroke="#3a4870" stroke-width="3"/>` +
+    `<rect x="16" y="16" width="218" height="318" rx="10" fill="url(#hs-lattice)" stroke="#d9a531" stroke-width="3"/>` +
+    `<circle cx="125" cy="175" r="44" fill="#1d2a4a" stroke="#d9a531" stroke-width="3"/>` +
+    `<use href="#suit-3" x="88" y="142" width="44" height="44" fill="#e2584b"/>` +
+    `<use href="#suit-2" x="118" y="164" width="44" height="44" fill="#e8eaf0"/>` +
+    `</svg>`;
+
+  const cache = new Map();
+  /** HTML for one card. card = null draws a face-down back. */
+  function cardHTML(card, cls) {
+    const k = card == null ? "b" : card;
+    let svg = cache.get(k);
+    if (!svg) { svg = card == null ? BACK : face(card); cache.set(k, svg); }
+    const label = card == null ? "face-down card" : C.longName(card);
+    return `<div class="pc${card == null ? " back" : ""}${cls ? " " + cls : ""}" role="img" aria-label="${label}">${svg}</div>`;
+  }
+
+  /** A small inline suit icon. */
+  function suitIcon(s, cls) {
+    return `<svg class="${cls || "suit"} ${s === 1 || s === 3 ? "suit-red" : "suit-black"}" viewBox="0 0 100 100" aria-label="${C.SUIT_NAMES[s]}"><use href="#suit-${s}"/></svg>`;
+  }
+
+  function init() {
+    const defs = document.querySelector("svg defs");
+    if (!defs || document.getElementById("hs-lattice")) return;
+    defs.insertAdjacentHTML("beforeend",
+      `<pattern id="hs-lattice" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">` +
+      `<rect width="22" height="22" fill="#223260"/><path d="M0 11h22M11 0v22" stroke="#2f4280" stroke-width="3"/>` +
+      `<circle cx="11" cy="11" r="2.4" fill="#d9a531" opacity=".55"/></pattern>`);
+  }
+
+  root.Art = { cardHTML, suitIcon, face, init };
+})(typeof self !== "undefined" ? self : globalThis);

@@ -1,0 +1,64 @@
+{
+ "hands": 8000,
+ "levels": [
+  "easy",
+  "medium",
+  "medium",
+  "medium"
+ ],
+ "seconds": 1.093,
+ "result": {
+  "easy": {
+   "avgPerHand": 12.511,
+   "seatHands": 8000,
+   "moons": 218
+  },
+  "medium": {
+   "avgPerHand": 5.07,
+   "seatHands": 24000,
+   "moons": 47
+  }
+ }
+}
+{
+ "hands": 8000,
+ "levels": [
+  "medium",
+  "medium",
+  "medium",
+  "medium"
+ ],
+ "seconds": 1.144,
+ "result": {
+  "medium": {
+   "avgPerHand": 6.689,
+   "seatHands": 32000,
+   "moons": 116
+  }
+ }
+}
+{
+ "hands": 2002,
+ "levels": [
+  "hard",
+  "medium",
+  "medium",
+  "medium"
+ ],
+ "seconds": 88.241,
+ "result": {
+  "hard": {
+   "avgPerHand": 5.617,
+   "seatHands": 2002,
+   "moons": 44
+  },
+  "medium": {
+   "avgPerHand": 7.383,
+   "seatHands": 6006,
+   "moons": 24
+  }
+ }
+}
+{"A":"easy","B":"medium","games":2000,"hands":20501,"seconds":1.924,"winRateA":0.11,"avgPerHandA":30.1,"avgPerHandB":51.3,"nilA":0,"nilMadeA":null,"setRateA":0.168}
+{"A":"medium","B":"medium","games":2000,"hands":17727,"seconds":2.023,"winRateA":0.502,"avgPerHandA":52.7,"avgPerHandB":52.8,"nilA":1889,"nilMadeA":0.91,"setRateA":0.051}
+{"A":"hard","B":"medium","games":308,"hands":2350,"seconds":206.047,"winRateA":0.909,"avgPerHandA":69.7,"avgPerHandB":40.4,"nilA":1119,"nilMadeA":0.81,"setRateA":0.092}

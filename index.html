@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hearts &amp; Spades — Timothy Hadfield</title>
+<meta name="description" content="Play Hearts and Spades against measured computer players, with a cards-left tracker, moon warning, bid advisor and a real-table scorekeeper.">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css?v=20261019b">
+</head>
+<body>
+
+<!-- Suit shapes, drawn for this site and reused by every card. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="suit-3" viewBox="0 0 100 100"><path d="M50 92C22 70 4 52 4 31 4 15 16 5 30 5c10 0 17 5 20 14C53 10 60 5 70 5c14 0 26 10 26 26 0 21-18 39-46 61z"/></symbol>
+    <symbol id="suit-1" viewBox="0 0 100 100"><path d="M50 2C60 22 74 38 90 50 74 62 60 78 50 98 40 78 26 62 10 50 26 38 40 22 50 2z"/></symbol>
+    <symbol id="suit-2" viewBox="0 0 100 100"><path d="M50 3C60 20 93 37 93 60c0 14-10 23-22 23-8 0-14-4-17-9 1 10 6 17 14 23H32c8-6 13-13 14-23-3 5-9 9-17 9C17 83 7 74 7 60 7 37 40 20 50 3z"/></symbol>
+    <symbol id="suit-0" viewBox="0 0 100 100"><circle cx="50" cy="27" r="20"/><circle cx="26" cy="58" r="20"/><circle cx="74" cy="58" r="20"/><circle cx="50" cy="50" r="12"/><path d="M45 55c0 18-5 30-14 42h38c-9-12-14-24-14-42z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button data-tab="hearts" class="tab"><svg viewBox="0 0 100 100"><use href="#suit-3"/></svg><span>Hearts</span></button>
+    <button data-tab="spades" class="tab"><svg viewBox="0 0 100 100"><use href="#suit-2"/></svg><span>Spades</span></button>
+    <button data-tab="score" class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Score</span></button>
+    <button data-tab="lab" class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Lab</span></button>
+    <button data-tab="settings" class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Settings</span></button>
+  </nav>
+
+  <main class="views">
+    <section class="view" id="view-hearts"></section>
+    <section class="view" id="view-spades"></section>
+    <section class="view" id="view-score"></section>
+    <section class="view" id="view-lab"></section>
+    <section class="view" id="view-settings"></section>
+  </main>
+</div>
+
+<div class="sheet-back" id="sheet-back" hidden>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<script src="js/cards.js?v=20261019b"></script>
+<script src="js/hearts.js?v=20261019b"></script>
+<script src="js/hearts-ai.js?v=20261019b"></script>
+<script src="js/spades.js?v=20261019b"></script>
+<script src="js/spades-ai.js?v=20261019b"></script>
+<script src="js/think-fns.js?v=20261019b"></script>
+<script src="js/think.js?v=20261019b"></script>
+<script src="js/art.js?v=20261019b"></script>
+<script src="js/store.js?v=20261019b"></script>
+<script src="js/table.js?v=20261019b"></script>
+<script src="js/hearts-ui.js?v=20261019b"></script>
+<script src="js/spades-ui.js?v=20261019b"></script>
+<script src="js/score-ui.js?v=20261019b"></script>
+<script src="js/lab-ui.js?v=20261019b"></script>
+<script src="js/app.js?v=20261019b"></script>
+</body>
+</html>
