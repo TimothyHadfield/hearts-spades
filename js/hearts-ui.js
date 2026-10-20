@@ -201,11 +201,13 @@
     const myTurn = h.phase === "play" && h.turn === ME && !S.busy;
 
     let seats = "";
+    const piles = T.wonPiles(h, H.trickWinner, (c) => C.suit(c) === 3 || c === 36 || (g.opts.jack && c === 22), !!S.showTrick);
     for (let s = 0; s < 4; s++) {
       const pos = T.POS[T.rel(s, ME)];
       seats += T.seatHTML({
-        pos, seat: s, name: NAMES[T.rel(s, ME)], score: g.scores[s], sub: seatSub(h, s), cpu: isCpu(s), initial: NAMES[T.rel(s, ME)][0],
+        pos, seat: s, name: NAMES[T.rel(s, ME)], score: g.scores[s], sub: seatSub(h, s), cpu: !!R && isCpu(s),
         turn: h.phase === "play" && h.turn === s && !S.busy, count: s !== ME ? h.hands[s].length : null,
+        won: piles.n[s], pts: piles.pts[s], deal: S.dealAnim,
       });
     }
 
@@ -225,19 +227,20 @@
       `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">${metaTxt} · ${S.level}</span></div>` +
       `<button class="btn sm hint-btn${S.hint ? " on" : ""}${S.thinking ? " thinking" : ""}" data-act="hint" ${(myTurn || (passing && !h.passes[ME])) && !S.thinking ? "" : "disabled"}>Hint</button>` +
       `<button class="icon-btn" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>` +
-      `<div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${center}${moon}</div>` +
+      `<div class="table tbl-surface tbl-felt-green"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim ? T.deckHTML() : ""}${center}${moon}</div>` +
       (cfg().tracker ? T.stripHTML(td, NAMES, ME) : "") +
       `<div class="prompt" id="h-prompt">${promptHTML()}</div>` +
       `<div class="hand-wrap">${handHTMLFor(h, myTurn, passing)}</div>` +
-      `</div><aside class="game-side">${sideHTML(td)}</aside></div>`;
+      `</div></div><aside class="game-side">${sideHTML(td)}</aside></div>`;
     T.fitHand(el.querySelector(".hand-wrap"));
+    if (S.dealAnim) T.runDeck(el);
     if (root.GameFX) root.GameFX.observe("hearts", { g: S.game, me: ME, dealAnim: S.dealAnim, show: S.showTrick, collecting: S.collecting, busy: S.busy }, el);
-    S.dealAnim = false;
+    S.dealAnim = false; S.flipNew = false; S.freshTrick.clear(); // a played card lands once, not again on every redraw
   }
 
   function handHTMLFor(h, myTurn, passing) {
     const cards = h.hands[ME];
-    const opts = { sel: S.sel, fresh: S.fresh, deal: S.dealAnim };
+    const opts = { sel: S.sel, fresh: S.fresh, deal: S.dealAnim, flip: S.flipNew ? S.fresh : null };
     if (passing && !h.passes[ME]) {
       opts.legal = new Set(cards);
       if (S.hint && S.hint.pass) opts.best = S.hint.pass;
@@ -299,7 +302,7 @@
     }
     let title = g.over ? (g.winners.includes(ME) ? (g.winners.length > 1 ? "You tie for the win" : "You win!") : NAMES[T.rel(g.winners[0], ME)] + " wins") : "Hand " + g.handNo;
     let note = r.moonBy >= 0 ? `<div class="warm" style="margin-bottom:6px;font-weight:700">${NAMES[T.rel(r.moonBy, ME)]} shot the moon!</div>` : "";
-    return `<div class="panel-c"><h3>${T.esc(title)}</h3>${note}<table class="mini"><tr><th></th><th>Took</th><th>Scored</th><th>Total</th></tr>${rows}</table>` +
+    return `<div class="panel-c pad"><h3>${T.esc(title)}</h3>${note}<table class="mini"><tr><th></th><th>Took</th><th>Scored</th><th>Total</th></tr>${rows}</table>` +
       (cfg().study && S.handStudy.length ? `<div class="muted" style="margin-top:8px">Your points lost this hand: <b style="color:${lost < 1 ? "var(--good)" : lost < 4 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(1)}</b> ${T.help("lost")}</div>` : "") +
       `<div class="row" style="margin-top:12px"><button class="btn" data-act="reveal">All hands</button><span style="flex:1"></span>` +
       (g.over ? `<button class="btn primary" data-act="new">New game</button>` : `<button class="btn primary" data-act="next">Next hand</button>`) + `</div></div>`;
@@ -318,7 +321,7 @@
       study = S.handStudy.length ? S.handStudy.map((x) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>Trick ${x.trick} · ${C.name(x.card)}${x.best !== x.card ? ` <span style="color:var(--muted)">(best ${C.name(x.best)})</span>` : ""}</span><b style="color:${x.lost < 0.3 ? "var(--good)" : x.lost < 1.5 ? "var(--accent-warm)" : "var(--bad)"}">${x.lost.toFixed(1)}</b></div>`).join("")
         : `<div class="muted" style="font-size:13px">Your plays this hand show here with the points each one lost.</div>`;
     }
-    return `<div class="side-sec"><h4>Scores · game to ${g.opts.target}</h4>${hist}</div>` +
+    return `<div class="side-sec"><div class="pad side-pad"><h4>Scores · game to ${g.opts.target}</h4>${hist}</div></div>` +
       (cfg().tracker ? `<div class="side-sec"><h4>Cards left ${T.help("tracker")}</h4>${T.trackerDetailHTML(td, NAMES, ME, keyProbs())}</div>` : "") +
       (cfg().study ? `<div class="side-sec fill"><h4>Points lost ${T.help("lost")}</h4>${study}</div>` : "");
   }
@@ -357,7 +360,7 @@
     if (R && R.snap && R.snap.status === "lobby") {
       el.innerHTML = `<div class="game"><div class="game-main">` +
         `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">Online room · ${T.esc(R.snap.options && R.snap.options.level || "medium")} computers</span></div></div>` +
-        `<div class="felt">${root.OnlineUI.lobbyHTML(R.snap, (i) => i === ME ? "You" : BASE_NAMES[T.rel(i, ME)])}</div></div></div>`;
+        `<div class="table tbl-surface tbl-felt-green"><div class="felt">${root.OnlineUI.lobbyHTML(R.snap, (i) => i === ME ? "You" : BASE_NAMES[T.rel(i, ME)])}</div></div></div></div>`;
       return;
     }
     const c = cfg();
@@ -369,7 +372,7 @@
     if (c.bleed) rules.push("points on trick 1");
     el.innerHTML = `<div class="game"><div class="game-main">` +
       `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">You vs 3 computers · lowest score wins</span></div></div>` +
-      `<div class="felt"><div class="panel-c start">` +
+      `<div class="table tbl-surface tbl-felt-green"><div class="felt">${T.restDeckHTML()}<div class="panel-c start">` +
       `<h3>New game</h3>` +
       `<div class="seats"><div>Left<b>Computer</b></div><div>Across<b>Computer</b></div><div>Right<b>Computer</b></div></div>` +
       `<div style="display:flex;align-items:center;font-size:13px;color:var(--muted)">Computer level ${T.help("level", "hearts")}</div>` +
@@ -377,7 +380,7 @@
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
       `<button class="btn primary wide" data-act="deal">Deal</button>` +
       `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button>` +
-      `</div></div></div></div>`;
+      `</div></div></div></div></div>`;
   }
 
   // ----------------------------------------------------------------- input
@@ -431,6 +434,7 @@
     if (S.online) return send({ type: "pass", cards: [...S.sel] });
     S.game = H.apply(S.game, { type: "pass", seat: ME, cards: [...S.sel] });
     S.fresh = new Set(S.game.hand.received[ME] || []);
+    S.flipNew = true;
     S.sel.clear(); S.hint = null;
     persist();
     step();
@@ -534,7 +538,7 @@
       S.showTrick = null; S.collecting = false; S.busy = false; S.dealAnim = true;
       return render();
     }
-    if (oh.phase === "pass" && h.phase === "play") { S.fresh = new Set(h.received[ME] || []); S.sel.clear(); S.hint = null; }
+    if (oh.phase === "pass" && h.phase === "play") { S.fresh = new Set(h.received[ME] || []); S.flipNew = true; S.sel.clear(); S.hint = null; }
     if (h.trickNo > oh.trickNo || (h.phase === "done" && oh.phase === "play")) {
       // A trick finished: show all four cards, then sweep them to the winner.
       const done = h.lastTrick;

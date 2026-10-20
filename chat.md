@@ -30,3 +30,20 @@
 - **Built:** `js/fx.js` (copy of `_fx`), `js/game-fx.js` (snapshot diff → sounds/animations, same path for local, computer and online moves), custom `heartsBroken` and `queenThud` sounds, Settings "Sound & effects" section, CSS deal/fly/sweep animations obey Animations off / Fast. Map in progress.md.
 - **Verified:** `tests/fx.test.mjs` 9 pass (failed 8/9 on a do-nothing stub first; a mutation dropping the Q♠ thud and flipping Spades win also failed it); other suites 20/21/7/6 pass. WebKit play-throughs at 393px and 1440px: real Hearts games to game over (win with confetti, lose, a real moon) and a Spades hand, 0 console errors, no overflow, no page scroll; logged sound calls per game. Screenshots in scratchpad `design/hearts-spades-fx/`.
 - **Open:** sounds never heard by a person; online sound path not run with 2 browsers.
+
+## 2026-10-20 — real-table look
+- **Asked (Tim):** make each game look like the real thing on a real table, "like you're looking through a camera that is connected to a user's glasses".
+- **Built:**
+  - green felt from the shared `_table` kit;
+  - opponents' held fans of lattice backs (white-bordered back art), trick cross with crooked cards, face-down staggered won tricks plus face-up Hearts point cards;
+  - name plates, a cream paper score pad (centre and laptop side), a squared deck on setup that thins during the deal;
+  - deal from the deck, 3-D flip for received/blind-nil cards, hand held as an arc fan;
+  - `_fx` 1.0.3 re-copied.
+  - Fixed a found glitch: the hand slid in from the left on every tap.
+- **Verified:**
+  - Tests 20/21/7/6/9 pass.
+  - 20 WebKit shots (393x659 + 1280x800, both games, setup to end), 0 errors, no overflow, no scroll.
+  - 320, 393, 659x393 and 1280 checked.
+  - Effects speed leaves the game Speed setting unchanged.
+  - Two read-only reviewer rounds.
+- **Open:** passed-card slide animation; landscape phone still cramped.

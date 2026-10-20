@@ -69,30 +69,117 @@
   }
 
   // ------------------------------------------------------------------ seats
+  // Each seat is drawn the way a player looks across a real card table: their held cards
+  // as a fan of backs, a small name plate, and the tricks they've won stacked face down in front.
   const CPU_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="7" width="14" height="11" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01"/></svg>`;
+  const KIT = () => root.TABLE || null;
+  const jit = (seed, i, o) => (KIT() ? KIT().jitter(seed, i, o) : { x: 0, y: 0, r: 0 });
+  const dealStep = () => 35 * (root.GameFX ? root.GameFX.speed() : 1);
+  const BACK = `tbl-card tbl-back tbl-lattice`;
+
+  /** n card backs held in a fan (drawn for a player at the bottom, then turned to face their seat). */
+  function backsHTML(n, r, deal) {
+    let out = `<div class="ofan-wrap" aria-label="${n} card${n === 1 ? "" : "s"}"><div class="ofan">`;
+    for (let i = 0; i < n; i++) {
+      const k = i - (n - 1) / 2;
+      out += `<i class="ob ${BACK}${deal ? " deal" : ""}" style="--a:${(k * 4).toFixed(1)}deg;--o:${k.toFixed(1)}` +
+        (deal ? `;animation-delay:${Math.round((i + r / 4) * dealStep())}ms` : "") + `"></i>`;
+    }
+    return out + `</div></div>`;
+  }
+
+  /** Tricks won: face-down, each one staggered on the last so the count reads at a glance.
+   *  pts (Hearts): the point cards from those tricks, laid face up beside the pile. */
+  function wonHTML(seat, n, pts) {
+    let out = `<div class="won${n ? "" : " empty"}" style="--n:${n}">`;
+    for (let i = 0; i < n; i++) {
+      const j = jit("won" + seat, i, { rot: 4, off: 1 });
+      out += `<i class="${BACK}" style="--i:${i};rotate:${j.r}deg;translate:0 ${j.y}px"></i>`;
+    }
+    out += `</div>`;
+    if (pts && pts.length) {
+      out += `<div class="wpts" style="--n:${pts.length}">` + pts.map((c, i) => {
+        const j = jit("pt" + seat, i, { rot: 5, off: 1 });
+        return `<div class="wp" style="--i:${i};rotate:${j.r}deg">${Art.cardHTML(c)}</div>`;
+      }).join("") + `</div>`;
+    }
+    return `<div class="won-area">${out}</div>`;
+  }
+
+  /** o: pos, seat, name, score, sub, cpu, turn, count (cards held, others only), won, pts, deal */
   function seatHTML(o) {
-    const vertical = o.pos === "left" || o.pos === "right";
+    const r = POS.indexOf(o.pos);
+    const plate = `<div class="plate tbl-plate">${o.cpu ? `<span class="cpu" aria-label="computer">${CPU_ICON}</span>` : ""}` +
+      `<span class="seat-name">${esc(o.name)}</span>${o.score !== "" && o.score != null ? `<b class="seat-score">${esc(o.score)}</b>` : ""}</div>`;
+    const info = `<div class="seat-info">${plate}${o.sub ? `<span class="seat-sub">${o.sub}</span>` : ""}</div>`;
     return `<div class="seat ${o.pos}${o.turn ? " turn" : ""}" data-seat="${o.seat}">` +
-      `<div class="avatar${o.them ? " them" : ""}${o.cpu ? " cpu" : ""}" aria-hidden="true">${o.cpu ? CPU_ICON : esc(o.initial || "?")}</div>` +
-      `<div class="seat-txt"><span class="seat-name">${esc(o.name)}</span><span class="seat-score">${esc(o.score)}</span>` +
-      (o.sub ? `<span class="seat-sub">${o.sub}</span>` : "") +
-      (vertical && o.count != null ? `<span class="seat-count">${o.count} card${o.count === 1 ? "" : "s"}</span>` : "") +
-      `</div></div>`;
+      (o.pos !== "bottom" ? backsHTML(o.count || 0, r, o.deal) : "") +
+      `<div class="seat-front">${info}${wonHTML(o.seat, o.won || 0, o.pts)}</div></div>`;
+  }
+
+  /** Tricks each seat has won and (Hearts) the point cards in them, rebuilt from the play log.
+   *  The trick still showing on the table (busy) isn't in anyone's pile yet. */
+  function wonPiles(h, trickWinner, isPoint, showing) {
+    const n = [0, 0, 0, 0], pts = [[], [], [], []];
+    const plays = h.plays || [];
+    const done = h.trickNo - (showing ? 1 : 0);
+    for (let t = 0; t < done; t++) {
+      const cards = plays.filter((p) => p.trickNo === t);
+      if (cards.length !== 4) continue;
+      const w = trickWinner(cards);
+      n[w]++;
+      if (isPoint) for (const p of cards) if (isPoint(p.card)) pts[w].push(p.card);
+    }
+    if (!plays.length) {   // an older saved game without the log: counts only
+      const src = h.tricksWon || h.tricks || [0, 0, 0, 0];
+      for (let s = 0; s < 4; s++) n[s] = src[s];
+      if (showing && h.lastTrick) n[h.lastTrick.winner] = Math.max(0, n[h.lastTrick.winner] - 1);
+    }
+    return { n, pts };
+  }
+
+  // ------------------------------------------------------------------- deck
+  /** The squared-up deck in the middle of the table while the cards are dealt out. */
+  function deckHTML() {
+    if (!root.GameFX || !root.GameFX.speed()) return "";
+    return `<div class="deal-deck"><i class="${BACK}"></i></div>`;
+  }
+  /** The squared, face-down deck waiting on the table before the first deal. */
+  function restDeckHTML() {
+    const st = KIT() ? KIT().stackShadow(52) : null;
+    return `<div class="rest-deck" aria-hidden="true"><i class="${BACK}"${st ? ` style="--tbl-stack:${st.shadow};translate:0 ${-st.thickness}px"` : ""}></i></div>`;
+  }
+  /** Thin the deck card by card as the deal goes round, then lift it away. */
+  function runDeck(view) {
+    const d = view && view.querySelector(".deal-deck");
+    if (!d || !KIT()) return;
+    const top = d.firstElementChild, total = 13 * dealStep() + 300, t0 = performance.now();
+    const tick = () => {
+      if (!d.isConnected) return;
+      const k = Math.min(1, (performance.now() - t0) / total);
+      const st = KIT().stackShadow(Math.round(52 * (1 - k)));
+      top.style.setProperty("--tbl-stack", st.shadow);
+      top.style.translate = `0 ${-st.thickness}px`;
+      if (k < 1) requestAnimationFrame(tick); else d.classList.add("gone");
+    };
+    tick();
   }
 
   // ------------------------------------------------------------------ trick
-  /** trick: [{seat, card}], fresh: Set of cards to animate in, win: winning seat or -1. */
+  /** trick: [{seat, card}], fresh: Set of cards to animate in, win: winning seat or -1.
+   *  Cards land a little crooked, like real cards tossed onto felt (same tilt every render). */
   function trickHTML(trick, me, fresh, win, collectTo) {
     let out = `<div class="trick${collectTo != null ? " collect" : ""}">`;
-    const off = { bottom: [0, 170], left: [-170, 0], top: [0, -170], right: [170, 0] };
+    const off = { bottom: [60, 150], left: [-150, 30], top: [60, -150], right: [150, 30] };
     for (const t of trick) {
       const r = rel(t.seat, me);
-      let style = "";
+      const j = jit("trick", t.card, { rot: 7, off: 3 });
+      let style = `rotate:${j.r}deg;translate:${j.x}px ${j.y}px`;
       if (collectTo != null) {
         const p = off[POS[rel(collectTo, me)]];
-        style = ` style="--tx:${p[0]}px;--ty:${p[1]}px"`;
+        style += `;--tx:${p[0]}px;--ty:${p[1]}px`;
       }
-      out += `<div class="slot s${r}${fresh && fresh.has(t.card) ? " fresh" : ""}${t.seat === win ? " win" : ""}"${style}>${Art.cardHTML(t.card)}</div>`;
+      out += `<div class="slot s${r}${fresh && fresh.has(t.card) ? " fresh" : ""}${t.seat === win ? " win" : ""}" style="${style}">${Art.cardHTML(t.card)}</div>`;
     }
     return out + `</div>`;
   }
@@ -100,7 +187,8 @@
   // ------------------------------------------------------------------- hand
   /**
    * Your hand, fanned to fit the row. opts: legal(Set), sel(Set), best(card), evs(Map card->{txt,color}),
-   * fresh(Set: cards newly received), deal(bool: animate in), hidden(bool: face down).
+   * fresh(Set: cards newly received), deal(bool: animate in), hidden(bool: face down),
+   * flip(true or Set: turn these cards face up with a 3-D flip, once).
    */
   function handHTML(cards, opts) {
     opts = opts || {};
@@ -112,28 +200,50 @@
       if (opts.best && opts.best.has && opts.best.has(c)) cls.push("best");
       if (opts.fresh && opts.fresh.has(c)) cls.push("new");
       if (opts.deal) cls.push("deal");
+      const flip = opts.flip && (opts.flip === true || opts.flip.has(c));
+      if (flip) cls.push("flip");
       const ev = opts.evs && opts.evs.get(c);
-      out += `<div class="${cls.join(" ")}" data-card="${c}" style="z-index:${i + 1}${opts.deal ? `;animation-delay:${Math.round(i * 35 * (root.GameFX ? root.GameFX.speed() : 1))}ms` : ""}"` +
+      out += `<div class="${cls.join(" ")}" data-card="${c}" style="z-index:${i + 1}${opts.deal ? `;animation-delay:${Math.round(i * dealStep())}ms` : ""}${flip ? `;--fd:${Math.round(i * dealStep())}ms` : ""}"` +
         `${opts.legal && opts.legal.has(c) ? ` role="button" tabindex="0" aria-label="${C.longName(c)}"` : ""}>` +
         (ev ? `<span class="ev" style="color:${ev.color}">${ev.txt}</span>` : "") +
-        Art.cardHTML(opts.hidden ? null : c) + `</div>`;
+        Art.cardHTML(opts.hidden ? null : c) + (flip ? Art.cardHTML(null, "flip-back") : "") + `</div>`;
     });
     return out + `</div>`;
   }
 
-  /** Overlap the cards so the whole hand fits the row's width. */
+  /** Hold the hand as a real fan: overlapping, on a gentle arc, every card's corner index showing.
+   *  While dealing, each card starts at the deck in the middle of the table. */
   function fitHand(container) {
     const hand = container && container.querySelector(".hand");
     if (!hand) return;
     const cards = hand.querySelectorAll(".hc");
     const n = cards.length;
     if (!n) return;
-    const w = cards[0].offsetWidth || 52;
-    const avail = hand.clientWidth || container.clientWidth;
-    const gap = 4;
-    let step = Math.min(w + gap, (avail - w) / Math.max(1, n - 1));
-    const m = step - w;
-    cards.forEach((el, i) => { el.style.marginLeft = i === 0 ? "0" : m + "px"; });
+    const w = cards[0].offsetWidth || 52, ch = cards[0].offsetHeight || w * 1.4;
+    const width = hand.clientWidth || container.clientWidth;
+    let L;
+    if (KIT()) L = KIT().fanLayout(n, { width, cardW: w, cardH: ch, spread: 0.64, maxRot: 11 });
+    else {
+      const step = Math.min(w * 0.64, (width - w) / Math.max(1, n - 1)), x0 = (width - (w + step * (n - 1))) / 2;
+      L = cards.length ? Array.from(cards, (_, i) => ({ x: x0 + i * step, y: 0, r: 0 })) : [];
+    }
+    const drop = Math.max(...L.map((p) => p.y));
+    let deck = null;
+    if (hand.querySelector(".hc.deal")) {
+      const felt = container.parentElement && container.parentElement.querySelector(".felt");
+      if (felt) { const f = felt.getBoundingClientRect(), hr = hand.getBoundingClientRect(); deck = { x: f.left + f.width / 2 - hr.left, y: f.top + f.height / 2 - hr.bottom }; }
+    }
+    // Freshly rendered cards must land in place, not slide in from the left edge.
+    cards.forEach((el) => { el.style.transition = "none"; });
+    cards.forEach((el, i) => {
+      const p = L[i];
+      el.style.setProperty("--x", p.x + "px");
+      el.style.setProperty("--y", (p.y - drop) + "px");
+      el.style.setProperty("--r", p.r + "deg");
+      if (deck) { el.style.setProperty("--dx", (deck.x - w / 2) + "px"); el.style.setProperty("--dy", (deck.y + ch / 2) + "px"); }
+    });
+    void hand.offsetWidth;
+    cards.forEach((el) => { el.style.transition = ""; });
   }
 
   // ---------------------------------------------------------- cards-left tracker
@@ -185,5 +295,5 @@
     return `hsl(${hue.toFixed(0)} 70% 62%)`;
   }
 
-  root.Table = { esc, POS, rel, HELP, help, openSheet, closeSheet, initSheet, toast, seatHTML, trickHTML, handHTML, fitHand, trackerData, stripHTML, trackerDetailHTML, scaleColor, CPU_ICON };
+  root.Table = { esc, POS, rel, HELP, help, openSheet, closeSheet, initSheet, toast, seatHTML, wonPiles, deckHTML, restDeckHTML, runDeck, trickHTML, handHTML, fitHand, trackerData, stripHTML, trackerDetailHTML, scaleColor, CPU_ICON };
 })(typeof self !== "undefined" ? self : globalThis);

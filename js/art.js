@@ -63,8 +63,9 @@
   }
 
   const BACK = `<svg viewBox="0 0 250 350" aria-hidden="true">` +
-    `<rect x="1.5" y="1.5" width="247" height="347" rx="17" fill="#1d2a4a" stroke="#3a4870" stroke-width="3"/>` +
-    `<rect x="16" y="16" width="218" height="318" rx="10" fill="url(#hs-lattice)" stroke="#d9a531" stroke-width="3"/>` +
+    `<rect x="1.5" y="1.5" width="247" height="347" rx="17" fill="#f7f4ec" stroke="#d4ccbb" stroke-width="3"/>` +
+    `<rect x="14" y="14" width="222" height="322" rx="9" fill="#1d2a4a"/>` +
+    `<rect x="22" y="22" width="206" height="306" rx="6" fill="url(#hs-lattice)" stroke="#d9a531" stroke-width="3"/>` +
     `<circle cx="125" cy="175" r="44" fill="#1d2a4a" stroke="#d9a531" stroke-width="3"/>` +
     `<use href="#suit-3" x="88" y="142" width="44" height="44" fill="#e2584b"/>` +
     `<use href="#suit-2" x="118" y="164" width="44" height="44" fill="#e8eaf0"/>` +

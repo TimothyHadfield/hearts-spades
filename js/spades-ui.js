@@ -193,13 +193,14 @@
     const win = S.showTrick ? S.showTrick.winner : -1;
 
     let seats = "";
+    const piles = T.wonPiles(h, S_.trickWinner, null, !!S.showTrick);
     for (let s = 0; s < 4; s++) {
       const pos = T.POS[T.rel(s, ME)];
       const sub = h.phase === "bid" && h.bids[s] === null ? (h.bidTurn === s ? "bidding…" : "") : `${bidTxt(h, s)} · won ${h.tricks[s]}`;
-      seats += T.seatHTML({ pos, seat: s, name: NAMES[T.rel(s, ME)], score: "", sub, cpu: isCpu(s), initial: nm(s)[0],
-        them: s % 2 !== US, turn: a && a.seats ? false : a && a.seat === s && !S.busy, count: s !== ME ? h.hands[s].length : null });
+      seats += T.seatHTML({ pos, seat: s, name: NAMES[T.rel(s, ME)], score: "", sub, cpu: !!R && isCpu(s),
+        turn: a && a.seats ? false : a && a.seat === s && !S.busy, count: s !== ME ? h.hands[s].length : null,
+        won: piles.n[s], deal: S.dealAnim && !S.flipAll });
     }
-    seats = seats.replace(/<span class="seat-score"><\/span>/g, "");
 
     let center = "";
     if (h.phase === "done" && !S.showTrick) center = summaryHTML();
@@ -216,14 +217,15 @@
 
     const td = T.trackerData(h, ME);
     el.innerHTML = `<div class="game"><div class="game-main">${bar}` +
-      `<div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${center}${makeChip}</div>` +
+      `<div class="table tbl-surface tbl-felt-green"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim && !S.flipAll ? T.deckHTML() : ""}${center}${makeChip}</div>` +
       (cfg().tracker && h.phase === "play" ? T.stripHTML(td, NAMES, ME) : "") +
       `<div class="prompt" id="s-prompt">${promptHTML(myAct)}</div>` +
       `<div class="hand-wrap">${handFor(h, myAct)}</div>` +
-      `</div><aside class="game-side">${sideHTML(td)}</aside></div>`;
+      `</div></div><aside class="game-side">${sideHTML(td)}</aside></div>`;
     T.fitHand(el.querySelector(".hand-wrap"));
+    if (S.dealAnim && !S.flipAll) T.runDeck(el);
     if (root.GameFX) root.GameFX.observe("spades", { g: S.game, me: ME, dealAnim: S.dealAnim, show: S.showTrick, collecting: S.collecting, busy: S.busy }, el);
-    S.dealAnim = false;
+    S.dealAnim = false; S.flipAll = false; S.freshTrick.clear(); // a played card lands once, not again on every redraw
   }
 
   const teamBid = (h, t) => (h.bids[t] || 0) + (h.bids[t + 2] || 0);
@@ -237,7 +239,7 @@
   }
 
   function handFor(h, myAct) {
-    const opts = { sel: S.sel, deal: S.dealAnim, hidden: !S.looked };
+    const opts = { sel: S.sel, deal: S.dealAnim && !S.flipAll, flip: S.flipAll || null, hidden: !S.looked };
     if (myAct === "exchange") opts.legal = new Set(h.hands[ME]);
     if (myAct === "play") {
       opts.legal = new Set(S_.legal(h, ME));
@@ -326,7 +328,7 @@
     };
     const lost = S.handStudy.reduce((a, x) => a + x.lost, 0) + (S.bidLoss ? S.bidLoss.lost : 0);
     const title = g.over ? (g.winner === US ? "You win!" : "They win") : "Hand " + g.handNo;
-    return `<div class="panel-c"><h3>${title}</h3>${team(US)}${team(THEM)}` +
+    return `<div class="panel-c pad"><h3>${title}</h3>${team(US)}${team(THEM)}` +
       (cfg().study ? `<div class="muted">Points lost this hand: <b style="color:${lost < 5 ? "var(--good)" : lost < 20 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(0)}</b> ${T.help("lost")}</div>` : "") +
       `<div class="row" style="margin-top:12px"><span style="flex:1"></span>${g.over ? `<button class="btn primary" data-act="new">New game</button>` : `<button class="btn primary" data-act="next">Next hand</button>`}</div></div>`;
   }
@@ -340,7 +342,7 @@
     hist += `<tr class="me"><td>Total</td><td>${g.scores[US]}</td><td>${g.scores[THEM]}</td></tr><tr><td>Bags ${T.help("bags")}</td><td>${g.bags[US]}</td><td>${g.bags[THEM]}</td></tr></table>`;
     let study = S.handStudy.map((x) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>Trick ${x.trick} · ${C.name(x.card)}${x.best !== x.card ? ` <span style="color:var(--muted)">(best ${C.name(x.best)})</span>` : ""}</span><b style="color:${x.lost < 2 ? "var(--good)" : x.lost < 8 ? "var(--accent-warm)" : "var(--bad)"}">${x.lost.toFixed(0)}</b></div>`).join("");
     if (S.bidLoss) study = `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>Bid ${S.bidLoss.mine === 0 ? "nil" : S.bidLoss.mine}${S.bidLoss.best !== S.bidLoss.mine ? ` <span style="color:var(--muted)">(best ${S.bidLoss.best === 0 ? "nil" : S.bidLoss.best})</span>` : ""}</span><b>${S.bidLoss.lost.toFixed(0)}</b></div>` + study;
-    return `<div class="side-sec"><h4>Scores · game to ${g.opts.target}</h4>${hist}</div>` +
+    return `<div class="side-sec"><div class="pad side-pad"><h4>Scores · game to ${g.opts.target}</h4>${hist}</div></div>` +
       (cfg().tracker && h.phase === "play" ? `<div class="side-sec"><h4>Cards left ${T.help("tracker")}</h4>${T.trackerDetailHTML(td, NAMES, ME, null)}</div>` : "") +
       (cfg().study ? `<div class="side-sec fill"><h4>Points lost ${T.help("lost")}</h4>${study || `<div class="muted" style="font-size:13px">Your bid and plays show here with the points each one lost.</div>`}</div>` : "");
   }
@@ -352,7 +354,7 @@
     if (R && R.snap && R.snap.status === "lobby") {
       el.innerHTML = `<div class="game"><div class="game-main">` +
         `<div class="bar"><div class="grow"><span class="title">Spades</span><span class="meta">Online room · partners sit across</span></div></div>` +
-        `<div class="felt">${root.OnlineUI.lobbyHTML(R.snap, (i) => i === ME ? "You" : BASE_NAMES[T.rel(i, ME)])}</div></div></div>`;
+        `<div class="table tbl-surface tbl-felt-green"><div class="felt">${root.OnlineUI.lobbyHTML(R.snap, (i) => i === ME ? "You" : BASE_NAMES[T.rel(i, ME)])}</div></div></div></div>`;
       return;
     }
     const c = cfg();
@@ -364,13 +366,13 @@
     if (c.firstLead === "2c") rules.push("2♣ leads");
     el.innerHTML = `<div class="game"><div class="game-main">` +
       `<div class="bar"><div class="grow"><span class="title">Spades</span><span class="meta">You + computer partner vs 2 computers</span></div></div>` +
-      `<div class="felt"><div class="panel-c start"><h3>New game</h3>` +
+      `<div class="table tbl-surface tbl-felt-green"><div class="felt">${T.restDeckHTML()}<div class="panel-c start"><h3>New game</h3>` +
       `<div class="seats"><div>Left<b>Computer</b></div><div>Partner<b>Computer</b></div><div>Right<b>Computer</b></div></div>` +
       `<div style="display:flex;align-items:center;font-size:13px;color:var(--muted)">Computer level ${T.help("level", "spades")}</div>` +
       `<div class="seg levels" data-act="level">${lv.map((l) => `<button data-level="${l}" aria-pressed="${c.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join("")}</div>` +
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
       `<button class="btn primary wide" data-act="deal">Deal</button>` +
-      `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button></div></div></div></div>`;
+      `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button></div></div></div></div></div>`;
   }
 
   // ------------------------------------------------------------------ input
@@ -389,7 +391,7 @@
       if (act === "pickbid") { const b = e.target.closest("[data-bid]"); if (b) { S.bidPick = +b.dataset.bid; render(); } return; }
       if (act === "bid") return submitBid(S.bidPick, false);
       if (act === "blind") return submitBid(0, true);
-      if (act === "look") { S.looked = true; S.dealAnim = true; persist(); return render(); }
+      if (act === "look") { S.looked = true; S.dealAnim = true; S.flipAll = true; persist(); return render(); }
       if (act === "give") return give();
       if (act === "next") return S.online ? send({ type: "next" }) : dealNext();
       if (act === "new") { if (S.online) return root.OnlineUI.leave("spades"); S = null; persist(); return render(); }
@@ -403,7 +405,7 @@
     const g = S.game;
     if (S.online) {
       if (S.sending) return;
-      if (blind) { S.looked = true; S.dealAnim = true; }
+      if (blind) { S.looked = true; S.dealAnim = true; S.flipAll = true; }
       send({ type: "bid", bid, blind });
     } else {
       try { S.game = S_.apply(g, { type: "bid", seat: ME, bid, blind }); }
@@ -419,7 +421,7 @@
       });
     }
     if (S.online) return;
-    if (blind) { S.looked = true; S.dealAnim = true; }
+    if (blind) { S.looked = true; S.dealAnim = true; S.flipAll = true; }
     persist(); step();
   }
 

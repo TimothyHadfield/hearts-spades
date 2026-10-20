@@ -129,55 +129,82 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 .hint-btn.thinking { opacity: 1; border-color: var(--accent-warm); animation: think 1s ease-in-out infinite alternate; }
 @keyframes think { from { opacity: .45; } to { opacity: 1; } }
 
-/* felt + seats */
-.felt {
-  flex: 1; min-height: 0; position: relative; overflow: hidden;
-  background: radial-gradient(ellipse at 50% 45%, #1d4434 0%, var(--felt) 45%, var(--felt-2) 100%);
-  border-bottom: 1px solid var(--felt-line);
+/* The table: one green felt (css/table.css surface) under the seats, the trick, the helpers and your hand,
+   seen from your chair. Card backs everywhere match the deck's back (navy lattice in a white margin). */
+.table {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  --back: #1d2a4a; --ink: rgba(217,165,49,.42); --back-frame: #f7f4ec;
+  --ow: 24px;              /* opponents' held cards */
+  --wc: 17px; --wstep: 3px; /* tricks won, face down */
+  --pw: 18px; --pstep: 5px; /* Hearts point cards, face up */
 }
-.felt::before { /* stitched rail */
-  content: ""; position: absolute; inset: 8px; border: 1px dashed rgba(255,255,255,.1); border-radius: 18px; pointer-events: none;
+.felt { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.seat { position: absolute; z-index: 2; display: flex; align-items: center; gap: 6px; }
+.seat.top { top: 0; left: 50%; translate: -50% 0; flex-direction: column; gap: 3px; }
+.seat.left { left: 0; top: 44%; translate: 0 -50%; }
+.seat.right { right: 0; top: 44%; translate: 0 -50%; flex-direction: row-reverse; }
+.seat.bottom { left: 8px; bottom: 6px; }
+.seat-front { display: flex; align-items: center; gap: 6px; }
+.seat.left .seat-front, .seat.right .seat-front { flex-direction: column; gap: 5px; }
+.seat-info { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.seat.bottom .seat-info { align-items: flex-start; }
+.plate.tbl-plate { display: flex; align-items: center; gap: 5px; padding: 1px 7px; font-size: 12px; transition: border-color .25s, box-shadow .25s; }
+.plate .cpu svg { width: 12px; height: 12px; display: block; opacity: .8; }
+.seat-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px; }
+.seat-score { font-size: 13px; font-weight: 800; color: #f3cf7a; font-variant-numeric: tabular-nums; }
+.seat.turn .plate.tbl-plate { border-color: #f0c35a; box-shadow: 0 0 0 2px rgba(240,195,90,.5), 0 0 14px rgba(240,195,90,.45); }
+.seat-sub { font-size: 11px; color: #e4efe8; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.seat-sub .pts { color: #ffb3b3; font-weight: 700; }
+
+/* an opponent's held cards: a fan of backs drawn for the bottom seat, then turned to face its owner */
+/* (held upright, so from your chair the card tops point away from the middle of the table) */
+.ofan-wrap { position: relative; flex: none; --fw: calc(var(--ow) * 5.2); --fh: calc(var(--ow) * 1.6); }
+.seat.top .ofan-wrap { width: var(--fw); height: var(--fh); margin-top: calc(var(--ow) * -.3); }
+.seat.left .ofan-wrap, .seat.right .ofan-wrap { width: var(--fh); height: var(--fw); }
+.seat.left .ofan-wrap { margin-left: calc(var(--ow) * -.3); }
+.seat.right .ofan-wrap { margin-right: calc(var(--ow) * -.3); }
+.ofan { position: absolute; left: 50%; top: 50%; width: var(--fw); height: var(--fh); translate: -50% -50%; --card-w: var(--ow); }
+.seat.left .ofan { rotate: -90deg; } .seat.right .ofan { rotate: 90deg; }
+.ofan .ob {
+  position: absolute; left: 50%; bottom: 0; margin-left: calc(var(--ow) / -2); transform-origin: 50% 160%;
+  translate: calc(var(--o) * var(--ow) * .2) 0; rotate: var(--a); transition: none;
 }
-.seat {
-  position: absolute; display: flex; align-items: center; gap: 7px; z-index: 2;
-  padding: 5px 9px 5px 5px; border-radius: 26px; background: rgba(8,16,13,.45); border: 1px solid rgba(255,255,255,.06);
-  transition: box-shadow .25s, border-color .25s;
-}
-.seat.turn { border-color: var(--accent-warm); box-shadow: 0 0 0 2px rgba(240,179,84,.25), 0 0 18px rgba(240,179,84,.25); }
-.seat.top { top: 10px; left: 50%; transform: translateX(-50%); }
-.seat.left { left: 8px; top: 40%; transform: translateY(-50%); flex-direction: column; padding: 6px 6px 7px; border-radius: 14px; gap: 3px; }
-.seat.right { right: 8px; top: 40%; transform: translateY(-50%); flex-direction: column; padding: 6px 6px 7px; border-radius: 14px; gap: 3px; }
-.seat.bottom { left: 50%; bottom: 8px; transform: translateX(-50%); }
-.avatar {
-  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none;
-  font-weight: 800; font-size: 13px; color: #0d1424; background: var(--accent);
-}
-.avatar.them { background: var(--accent-warm); color: #231703; }
-.avatar.cpu svg { width: 18px; height: 18px; }
-.seat-txt { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; align-items: flex-start; }
-.seat.left .seat-txt, .seat.right .seat-txt { align-items: center; text-align: center; }
-.seat-name { font-size: 12px; color: var(--felt-text); font-weight: 650; white-space: nowrap; }
-.seat-score { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.seat-sub { font-size: 11px; color: var(--felt-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.seat-sub .pts { color: #ff9b9b; font-weight: 700; }
-.seat-count { font-size: 10.5px; color: var(--felt-text); }
-.void-row { display: flex; gap: 2px; }
-.void-row svg { width: 11px; height: 11px; opacity: .9; }
+.ofan .ob.deal { animation: obIn .3s ease-out both; }
+@keyframes obIn { from { opacity: 0; transform: translateY(calc(var(--ow) * 2.5)); } }
+
+/* tricks won, face down and staggered so they can be counted; Hearts point cards face up beside them */
+.won-area { display: flex; align-items: center; gap: 6px; }
+.won { position: relative; flex: none; width: calc(var(--wc) + (var(--n) - 1) * var(--wstep)); height: calc(var(--wc) * 1.4); --card-w: var(--wc); }
+.won.empty { display: none; }
+.won > .tbl-card { position: absolute; top: 0; left: calc(var(--i) * var(--wstep)); box-shadow: 0 1px 1px rgba(0,0,0,.45); }
+.wpts { display: none; position: relative; flex: none; width: calc(var(--pw) + (var(--n) - 1) * var(--pstep)); height: calc(var(--pw) * 1.4); }
+.wpts .wp { position: absolute; top: 0; left: calc(var(--i) * var(--pstep)); width: var(--pw); }
+.wpts .wp .pc { box-shadow: 0 1px 2px rgba(0,0,0,.45); }
+
+/* the deck in the middle while the cards go round */
+.deal-deck { position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 4; --card-w: calc(var(--tw) * .8); pointer-events: none; transition: opacity .25s; }
+.deal-deck.gone { opacity: 0; }
 
 /* trick area */
-.trick { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 3; }
+/* a loose cross in the true middle of the table, clear of the seat plates */
+.trick { position: absolute; left: 50%; top: 54%; width: 0; height: 0; z-index: 3; }
 .trick .slot { position: absolute; width: var(--tw); transform: translate(-50%, -50%); }
-.trick .slot.s0 { left: 0; top: 42px; }
-.trick .slot.s1 { left: -62px; top: 0; }
-.trick .slot.s2 { left: 0; top: -42px; }
-.trick .slot.s3 { left: 62px; top: 0; }
+.trick .slot.s0 { left: 0; top: 40px; }
+.trick .slot.s1 { left: -58px; top: 0; }
+.trick .slot.s2 { left: 0; top: -40px; }
+.trick .slot.s3 { left: 58px; top: 0; }
+/* the squared deck waiting on the table before the first deal */
+.rest-deck { position: absolute; left: 50%; top: 14px; translate: -50% 0; z-index: 1; --card-w: calc(var(--tw) * .8); pointer-events: none; }
+.rest-deck > .tbl-card { display: block; rotate: -4deg; }
+.deal-deck > .tbl-card { display: block; }
 .trick .slot.fresh .pc { animation: fly .32s cubic-bezier(.2,.8,.25,1) both; }
 .trick .slot.s0 .pc { --fx: 0px; --fy: 160px; }
 .trick .slot.s1 .pc { --fx: -150px; --fy: 0px; }
 .trick .slot.s2 .pc { --fx: 0px; --fy: -150px; }
 .trick .slot.s3 .pc { --fx: 150px; --fy: 0px; }
 @keyframes fly { from { transform: translate(var(--fx), var(--fy)) rotate(-8deg); opacity: .2; } to { transform: none; opacity: 1; } }
-.trick.collect .slot .pc { animation: none; transition: transform .38s ease-in, opacity .38s ease-in; transform: translate(var(--tx), var(--ty)) scale(.5); opacity: 0; }
+.trick .slot .pc { box-shadow: 0 1px 1px rgba(0,0,0,.35), 0 4px 10px rgba(0,0,0,.35); }
+.trick.collect .slot .pc { animation: none; transition: transform .38s ease-in, opacity .38s ease-in; transform: translate(var(--tx), var(--ty)) scale(.3) rotate(25deg); opacity: 0; }
 .trick .slot.win .pc { box-shadow: 0 0 0 2px var(--accent-warm), 0 6px 14px rgba(0,0,0,.5); border-radius: 6px; }
 
 .felt-msg {
@@ -231,15 +258,30 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 .prompt .msg b { font-weight: 700; }
 .prompt .msg .small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* your hand */
+/* the helpers sit on the felt, along your edge of the table */
+.table .strip { background: rgba(0,0,0,.2); border-bottom: 0; border-top: 1px solid rgba(255,255,255,.05); }
+.table .strip .voids { color: rgba(230,240,232,.7); }
+.table .prompt .msg .small { color: rgba(232,240,234,.78); }
+.table .help { background: rgba(0,0,0,.3); border-color: rgba(255,255,255,.22); color: #e6efe9; }
+
+/* your hand: held as a fan on a gentle arc (positions from TABLE.fanLayout in js/table.js) */
 .hand-wrap { padding: 0 10px 10px; position: relative; }
-.hand { display: flex; justify-content: center; height: calc(var(--cw) * 1.4 + 22px); align-items: flex-end; }
-.hand .hc { position: relative; flex: none; width: var(--cw); transition: transform .16s ease; }
-.hand .hc.deal { animation: dealIn .38s cubic-bezier(.2,.8,.3,1) both; }
-@keyframes dealIn { from { transform: translateY(-120px) scale(.6) rotate(10deg); opacity: 0; } to { opacity: 1; } }
+.hand { position: relative; height: calc(var(--cw) * 1.4 + 26px); }
+.hand .hc {
+  position: absolute; left: 0; bottom: 0; width: var(--cw); transform-origin: 50% 100%;
+  transform: translate(var(--x, 0px), calc(var(--y, 0px) - var(--up, 0px))) rotate(var(--r, 0deg)); transition: transform .16s ease;
+}
+.hand .hc .pc { box-shadow: 0 1px 1px rgba(0,0,0,.3), -2px 3px 7px rgba(0,0,0,.35); }
+.hand .hc.deal { animation: dealIn .42s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes dealIn { from { transform: translate(var(--dx, 0px), var(--dy, -120px)) rotate(90deg) scale(.7); opacity: 0; } 12% { opacity: 1; } }
+.hand .hc.flip { perspective: 700px; }
+.hand .hc.flip > .pc { -webkit-backface-visibility: hidden; backface-visibility: hidden; animation: flipFront .5s ease both; animation-delay: var(--fd, 0ms); }
+.hand .hc.flip > .pc.flip-back { position: absolute; left: 0; top: 0; animation-name: flipBack; pointer-events: none; }
+@keyframes flipFront { from { transform: rotateY(180deg); } to { transform: rotateY(0deg); } }
+@keyframes flipBack { from { transform: rotateY(0deg); } to { transform: rotateY(-180deg); } }
 .hand .hc.legal { cursor: pointer; }
 .hand .hc.illegal .pc { filter: brightness(.68) saturate(.85); }
-.hand .hc.sel { transform: translateY(-20px); }
+.hand .hc.sel { --up: 20px; }
 .hand .hc.sel .pc { box-shadow: 0 0 0 2px var(--accent-warm), 0 8px 18px rgba(0,0,0,.55); }
 .hand .hc.best .pc { box-shadow: 0 0 0 2px var(--good), 0 6px 14px rgba(0,0,0,.5); }
 .hand .hc.new .pc::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; box-shadow: inset 0 0 0 3px #7fb2ff, 0 0 0 1px #7fb2ff; pointer-events: none; }
@@ -251,7 +293,19 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 /* a playing card (SVG face) */
 .pc { position: relative; width: 100%; aspect-ratio: 5 / 7; border-radius: 7%; background: var(--face); box-shadow: 0 2px 6px rgba(0,0,0,.45); }
 .pc svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit; }
-.pc.back { background: #1d2a4a; }
+.pc.back { background: var(--face); }
+
+/* score pad: the hand-over sheet and the laptop score table are paper, like the pad at a real table */
+.pad {
+  --text: #23211c; --muted: #6d6555; --line: rgba(60,70,110,.2); --good: #17804a; --bad: #b3261e; --accent-warm: #a35d00;
+  --card: #ece3cc; --card-hover: #e3d8bc; --bg-soft: #ece3cc; --bg: #f3ecd9;
+  color: var(--text); background: #f6f0df !important; border: 0 !important; border-top: 7px solid #7b2d26 !important;
+  box-shadow: 0 2px 3px rgba(0,0,0,.35), 0 12px 30px rgba(0,0,0,.45) !important;
+}
+.pad.panel-c { border-radius: 3px 3px 6px 6px; }
+.pad .btn.primary { color: #0d1424; }
+.side-pad { margin: -2px -4px; padding: 10px 12px 8px; border-radius: 2px 2px 4px 4px; }
+.side-pad h4 { color: var(--muted) !important; }
 .pc.mini { width: 22px; border-radius: 3px; }
 
 /* bid picker */
@@ -259,6 +313,11 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 @media (max-width: 899px) {
   /* the opaque panel already covers the side seats on a phone; hide their stray edges */
   .felt:has(.panel-c) .seat.left, .felt:has(.panel-c) .seat.right { visibility: hidden; }
+  /* the score pad at the end of a hand covers the whole middle; don't leave half-hidden name plates */
+  .felt:has(.panel-c.pad) .seat.top, .felt:has(.panel-c.pad) .seat.bottom { visibility: hidden; }
+  /* Hearts point cards stay face up beside each pile on a phone too, just smaller */
+  .table .wpts { display: block; }
+  .seat.left .won-area, .seat.right .won-area { flex-direction: column; gap: 4px; }
   .felt .panel-c { padding: 12px; }
   .panel-c .dist { height: 54px; }
 }
@@ -350,14 +409,17 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .game-side h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; }
   .trick .slot.s0 { top: calc(var(--tw) * .82); } .trick .slot.s2 { top: calc(var(--tw) * -.82); }
   .trick .slot.s1 { left: calc(var(--tw) * -1.06); } .trick .slot.s3 { left: calc(var(--tw) * 1.06); }
-  .seat.left { left: 22px; } .seat.right { right: 22px; } .seat.top { top: 18px; }
-  .seat { padding: 7px 14px 7px 7px; gap: 10px; }
-  .seat.left, .seat.right { padding: 10px 12px 10px; gap: 4px; min-width: 96px; }
-  .avatar { width: 48px; height: 48px; font-size: 18px; }
-  .avatar.cpu svg { width: 24px; height: 24px; }
-  .seat-name { font-size: 14px; } .seat-score { font-size: 24px; } .seat-sub { font-size: 13px; } .seat-count { font-size: 12px; }
-  .void-row svg { width: 14px; height: 14px; }
-  .strip { display: none; }
+  .table { --ow: clamp(32px, min(3.6vw, 5.6vh), 48px); --wc: clamp(24px, min(2.5vw, 4vh), 32px); --wstep: 5px; --pw: clamp(30px, min(3vw, 4.6vh), 40px); --pstep: 11px; }
+  .seat { gap: 10px; }
+  .seat.left .seat-front, .seat.right .seat-front { gap: 8px; }
+  .seat.bottom { left: 22px; bottom: 14px; }
+  .seat.bottom .seat-front { gap: 12px; }
+  .plate.tbl-plate { font-size: 14px; line-height: 22px; padding: 2px 10px; gap: 7px; }
+  .plate .cpu svg { width: 15px; height: 15px; }
+  .seat-name { max-width: 120px; } .seat-score { font-size: 16px; } .seat-sub { font-size: 13px; }
+  .wpts { display: block; }
+  .seat.left .won-area, .seat.right .won-area { flex-direction: column; }
+  .felt .panel-c.pad { top: 56%; max-height: calc(88% - 40px); } /* the score pad sits below Across's name and pile */  .strip { display: none; }
   .prompt { padding: 10px 18px; }
   .prompt .msg { font-size: 15px; }
   .hand-wrap { padding: 6px 18px 16px; }
@@ -378,7 +440,7 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .set-page { max-width: 1240px; }
   .set-page .cols { grid-template-columns: repeat(3, 1fr); align-items: start; }
 }
-@media (max-width: 360px) { :root { --tw: 56px; } .seat-score { font-size: 14px; } .trick .slot.s1 { left: -56px; } .trick .slot.s3 { left: 56px; } }
+@media (max-width: 360px) { :root { --tw: 56px; } .table { --ow: 19px; } .seat-name { max-width: 54px; } .trick .slot.s1 { left: -56px; } .trick .slot.s3 { left: 56px; } }
 @media (max-height: 640px) and (max-width: 899px) { :root { --cw: 50px; --tw: 48px; } .trick .slot.s0 { top: 38px; } .trick .slot.s2 { top: -38px; } .trick .slot.s1 { left: -50px; } .trick .slot.s3 { left: 50px; } }
 
 /* ---------------------------------------------------------------- online */
@@ -399,7 +461,11 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 .fx-set .set-row .seg { flex: 0 1 160px; }
 .fx-set .fx-vol { flex: 0 1 180px; }
 .fx-set .fx-test { min-height: 36px; }
-html.fx-noanim .hand .hc.deal, html.fx-noanim .trick .slot.fresh .pc, html.fx-noanim .panel-c, html.fx-noanim .moon { animation: none; }
+html.fx-noanim .hand .hc.deal, html.fx-noanim .trick .slot.fresh .pc, html.fx-noanim .panel-c, html.fx-noanim .moon,
+html.fx-noanim .ofan .ob.deal, html.fx-noanim .hand .hc.flip > .pc { animation: none; }
+html.fx-noanim .hand .hc.flip > .pc.flip-back { display: none; }
+html.fx-fast .ofan .ob.deal { animation-duration: .18s; }
+html.fx-fast .hand .hc.flip > .pc { animation-duration: .3s; }
 html.fx-noanim .trick.collect .slot .pc { transition: none; }
 html.fx-fast .hand .hc.deal { animation-duration: .21s; }
 html.fx-fast .trick .slot.fresh .pc { animation-duration: .18s; }
