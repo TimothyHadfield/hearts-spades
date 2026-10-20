@@ -76,7 +76,7 @@
       `<div class="avatar${o.them ? " them" : ""}${o.cpu ? " cpu" : ""}" aria-hidden="true">${o.cpu ? CPU_ICON : esc(o.initial || "?")}</div>` +
       `<div class="seat-txt"><span class="seat-name">${esc(o.name)}</span><span class="seat-score">${esc(o.score)}</span>` +
       (o.sub ? `<span class="seat-sub">${o.sub}</span>` : "") +
-      (vertical && o.count != null ? `<span class="seat-count">${o.count} cards</span>` : "") +
+      (vertical && o.count != null ? `<span class="seat-count">${o.count} card${o.count === 1 ? "" : "s"}</span>` : "") +
       `</div></div>`;
   }
 

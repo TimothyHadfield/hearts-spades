@@ -79,8 +79,8 @@
     // player order around the table: team A = 0 & 2, team B = 1 & 3
     const team = (t) => `<div style="flex:1;min-width:0"><input class="txt" data-team="${t}" value="${T.esc(d.teams[t])}" maxlength="12" aria-label="Team name" style="font-weight:800;margin-bottom:6px">` +
       `<div class="big" style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;${t ? "color:var(--accent-warm)" : ""}">${sc[t]}</div><div class="muted" style="font-size:12px">${bags[t]} bag${bags[t] === 1 ? "" : "s"}</div>` +
-      [t, t + 2].map((i) => `<div style="display:grid;grid-template-columns:1fr 74px 60px;gap:4px;margin-top:6px;align-items:center">` +
-        `<input class="txt" data-pname="${i}" value="${T.esc(d.names[i])}" maxlength="10" aria-label="Player name">` +
+      [t, t + 2].map((i) => `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;margin-top:6px;align-items:center">` +
+        `<input class="txt" data-pname="${i}" value="${T.esc(d.names[i])}" maxlength="10" aria-label="Player name" style="grid-column:1/-1;min-width:0">` +
         `<select class="num" data-bid="${i}" aria-label="Bid">${bidOpts(i)}</select>` +
         `<input class="num" inputmode="numeric" data-tricks="${i}" value="${T.esc(dr.tricks[i])}" placeholder="Won" aria-label="Tricks won"></div>`).join("") + `</div>`;
     const rows = d.hands.slice().reverse().map((hnd, k) => `<tr><td style="color:var(--muted);font-size:12px">${d.hands.length - k}</td>` +
