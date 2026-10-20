@@ -24,3 +24,9 @@
 - **Asked (Tim):** "review them again for design improvements especially visually".
 - **Built:** bigger hand/trick cards on phone and laptop, trick centred clear of seats, lining-numeral "10", bigger card index, court frame narrowed, larger laptop seats and scorekeeper, Settings 3 columns on wide screens, bigger tap targets, clearer received-card outline. No rules or wording changed.
 - **Verified:** 11 states × phone (WebKit 393px) + desktop 1440px before/after, 0 errors, no overflow, no page scroll; tests 20/21/7/6 pass; live at 1e05cf1.
+
+## 2026-10-20 — sounds, celebrations, animations
+- **Asked (Tim):** "add opptional sounds ... win celebrations, and other fun annimations ... customizable in the settings".
+- **Built:** `js/fx.js` (copy of `_fx`), `js/game-fx.js` (snapshot diff → sounds/animations, same path for local, computer and online moves), custom `heartsBroken` and `queenThud` sounds, Settings "Sound & effects" section, CSS deal/fly/sweep animations obey Animations off / Fast. Map in progress.md.
+- **Verified:** `tests/fx.test.mjs` 9 pass (failed 8/9 on a do-nothing stub first; a mutation dropping the Q♠ thud and flipping Spades win also failed it); other suites 20/21/7/6 pass. WebKit play-throughs at 393px and 1440px: real Hearts games to game over (win with confetti, lose, a real moon) and a Spades hand, 0 console errors, no overflow, no page scroll; logged sound calls per game. Screenshots in scratchpad `design/hearts-spades-fx/`.
+- **Open:** sounds never heard by a person; online sound path not run with 2 browsers.

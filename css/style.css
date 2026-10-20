@@ -393,3 +393,14 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 .on-seat { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
 .on-seat .pos { width: 52px; flex: none; color: var(--muted); font-size: 12px; }
 .on-seat .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Sound & effects (js/fx.js settings rows; the table's own animations follow its switches) */
+.fx-set .fx-lab { font-size: 14.5px; }
+.fx-set .set-row .seg { flex: 0 1 160px; }
+.fx-set .fx-vol { flex: 0 1 180px; }
+.fx-set .fx-test { min-height: 36px; }
+html.fx-noanim .hand .hc.deal, html.fx-noanim .trick .slot.fresh .pc, html.fx-noanim .panel-c, html.fx-noanim .moon { animation: none; }
+html.fx-noanim .trick.collect .slot .pc { transition: none; }
+html.fx-fast .hand .hc.deal { animation-duration: .21s; }
+html.fx-fast .trick .slot.fresh .pc { animation-duration: .18s; }
+html.fx-fast .trick.collect .slot .pc { transition-duration: .21s; }

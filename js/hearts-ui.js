@@ -230,8 +230,9 @@
       `<div class="prompt" id="h-prompt">${promptHTML()}</div>` +
       `<div class="hand-wrap">${handHTMLFor(h, myTurn, passing)}</div>` +
       `</div><aside class="game-side">${sideHTML(td)}</aside></div>`;
-    S.dealAnim = false;
     T.fitHand(el.querySelector(".hand-wrap"));
+    if (root.GameFX) root.GameFX.observe("hearts", { g: S.game, me: ME, dealAnim: S.dealAnim, show: S.showTrick, collecting: S.collecting, busy: S.busy }, el);
+    S.dealAnim = false;
   }
 
   function handHTMLFor(h, myTurn, passing) {
@@ -352,6 +353,7 @@
   }
 
   function renderStart() {
+    if (root.GameFX) root.GameFX.observe("hearts", null, el);
     if (R && R.snap && R.snap.status === "lobby") {
       el.innerHTML = `<div class="game"><div class="game-main">` +
         `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">Online room · ${T.esc(R.snap.options && R.snap.options.level || "medium")} computers</span></div></div>` +
@@ -412,7 +414,7 @@
       return render();
     }
     if (h.phase !== "play" || h.turn !== ME || S.busy) return;
-    if (!H.legal(h, ME).includes(card)) { T.toast(h.trick.length ? "Follow suit if you can" : (h.trickNo === 0 ? "The 2♣ leads first" : "Hearts aren't broken yet")); return; }
+    if (!H.legal(h, ME).includes(card)) { if (root.GameFX) root.GameFX.illegal(el.querySelector(`.hc[data-card="${card}"]`)); T.toast(h.trick.length ? "Follow suit if you can" : (h.trickNo === 0 ? "The 2♣ leads first" : "Hearts aren't broken yet")); return; }
     if (S.sel.has(card)) {
       if (!S.online) return doPlay(ME, card);
       if (S.sending) return;

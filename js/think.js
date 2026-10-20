@@ -8,7 +8,7 @@
   function start() {
     if (worker || broken || typeof Worker === "undefined") return worker;
     try {
-      worker = new Worker("js/worker.js?v=2026-10-20b");
+      worker = new Worker("js/worker.js?v=2026-10-20c");
       worker.onmessage = (e) => {
         const w = waiting.get(e.data.id);
         if (!w) return;

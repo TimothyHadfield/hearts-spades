@@ -221,8 +221,9 @@
       `<div class="prompt" id="s-prompt">${promptHTML(myAct)}</div>` +
       `<div class="hand-wrap">${handFor(h, myAct)}</div>` +
       `</div><aside class="game-side">${sideHTML(td)}</aside></div>`;
-    S.dealAnim = false;
     T.fitHand(el.querySelector(".hand-wrap"));
+    if (root.GameFX) root.GameFX.observe("spades", { g: S.game, me: ME, dealAnim: S.dealAnim, show: S.showTrick, collecting: S.collecting, busy: S.busy }, el);
+    S.dealAnim = false;
   }
 
   const teamBid = (h, t) => (h.bids[t] || 0) + (h.bids[t + 2] || 0);
@@ -347,6 +348,7 @@
   const isCpu = (s) => (R && R.snap && R.snap.seats ? R.snap.seats[s].kind !== "human" : s !== ME);
 
   function renderStart() {
+    if (root.GameFX) root.GameFX.observe("spades", null, el);
     if (R && R.snap && R.snap.status === "lobby") {
       el.innerHTML = `<div class="game"><div class="game-main">` +
         `<div class="bar"><div class="grow"><span class="title">Spades</span><span class="meta">Online room · partners sit across</span></div></div>` +
@@ -437,7 +439,7 @@
       return render();
     }
     if (a.kind !== "play") return;
-    if (!S_.legal(h, ME).includes(card)) { T.toast(h.trick.length ? "Follow suit if you can" : "Spades aren't broken yet"); return; }
+    if (!S_.legal(h, ME).includes(card)) { if (root.GameFX) root.GameFX.illegal(el.querySelector(`.hc[data-card="${card}"]`)); T.toast(h.trick.length ? "Follow suit if you can" : "Spades aren't broken yet"); return; }
     if (S.sel.has(card)) {
       if (!S.online) return doPlay(ME, card);
       if (S.sending) return;

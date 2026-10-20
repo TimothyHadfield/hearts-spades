@@ -113,7 +113,7 @@
       if (opts.fresh && opts.fresh.has(c)) cls.push("new");
       if (opts.deal) cls.push("deal");
       const ev = opts.evs && opts.evs.get(c);
-      out += `<div class="${cls.join(" ")}" data-card="${c}" style="z-index:${i + 1}${opts.deal ? `;animation-delay:${i * 35}ms` : ""}"` +
+      out += `<div class="${cls.join(" ")}" data-card="${c}" style="z-index:${i + 1}${opts.deal ? `;animation-delay:${Math.round(i * 35 * (root.GameFX ? root.GameFX.speed() : 1))}ms` : ""}"` +
         `${opts.legal && opts.legal.has(c) ? ` role="button" tabindex="0" aria-label="${C.longName(c)}"` : ""}>` +
         (ev ? `<span class="ev" style="color:${ev.color}">${ev.txt}</span>` : "") +
         Art.cardHTML(opts.hidden ? null : c) + `</div>`;

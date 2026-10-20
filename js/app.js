@@ -65,6 +65,7 @@
       if (group !== "helpers") out += `<p class="muted" style="font-size:12px;margin:6px 0 0">Rule changes start with your next new game.</p>`;
       out += `</div>`;
     }
+    out += `<div class="sec"><h3>Sound &amp; effects</h3><div class="fx-box"></div></div>`;
     out += `<div class="sec"><h3>Online</h3><p class="muted" style="font-size:13px;margin:0">On the Hearts or Spades table, tap Play online to make a room and send friends its code. Empty seats are played by computers.</p></div>`;
     out += `</div><p class="ver">Version ${Store.VERSION} · <a href="../">More board &amp; card games</a></p></div></div>`;
     return out;
@@ -100,7 +101,11 @@
     document.querySelectorAll(".tab").forEach((b) => { b.classList.toggle("active", b.dataset.tab === tab); b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"); });
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + tab));
     const view = document.getElementById("view-" + tab);
-    if (tab === "settings") view.innerHTML = settingsHTML();
+    if (tab === "settings") {
+      view.innerHTML = settingsHTML();
+      const box = view.querySelector(".fx-box");
+      if (box && root.FX) root.FX.renderSettings(box);
+    }
     else MODULES[tab].show();
   }
 
