@@ -19,3 +19,8 @@
   - Spades scorekeeper names were squashed to 20px on phone (now full-width over Bid/Won);
   - the seat said "1 cards".
 - **Open:** real iPhone check, and online with more than 2 people.
+
+## 2026-10-20 — visual design pass
+- **Asked (Tim):** "review them again for design improvements especially visually".
+- **Built:** bigger hand/trick cards on phone and laptop, trick centred clear of seats, lining-numeral "10", bigger card index, court frame narrowed, larger laptop seats and scorekeeper, Settings 3 columns on wide screens, bigger tap targets, clearer received-card outline. No rules or wording changed.
+- **Verified:** 11 states × phone (WebKit 393px) + desktop 1440px before/after, 0 errors, no overflow, no page scroll; tests 20/21/7/6 pass; live at 1e05cf1.

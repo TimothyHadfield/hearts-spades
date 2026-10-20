@@ -2,7 +2,7 @@
 
 ## START HERE
 Read order: this file → CLAUDE.md → docs/rules-check.md → docs/ideas.md → chat.md.
-Last updated: 2026-10-19 (built by a builder agent under the Party & Card manager).
+Last updated: 2026-10-20 (visual design pass, builder agent).
 
 ## Goal right now
 Hearts and Spades in one site. Play against measured computers, use study helpers, play online with friends, and keep score at a real table. Phase 1 and phase 2 of the games brief are both done.
@@ -19,7 +19,8 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 | Lab | Done: strength tables, run your own matches |
 | Online | Done via the shared `_online` layer (Firebase th-board-games, game IDs `hearts`/`spades`). Rooms with codes; empty seats played by computers |
 | Heavy maths | Runs in a Web Worker (js/worker.js through js/think.js); falls back to the page |
-| Tests | hearts 20, spades 21, odds 7, online 6: all pass (2026-10-19) |
+| Tests | hearts 20, spades 21, odds 7, online 6: all pass (2026-10-20) |
+| Visual design pass | Done 2026-10-20 (1e05cf1): cards scale to screen (`--cw`/`--tw` clamps in style.css), lining "10", court frame clear of index, laptop seats/score bigger, Settings 3 columns ≥1200px, tap targets ≥36–40px. Screenshot script: scratchpad `design/hearts-spades/shoot.mjs` (JS clicks) |
 
 ## Authorized next steps
 - (none pending; wait for Tim's feedback via the manager)
@@ -51,6 +52,7 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 - On a real iPhone (only WebKit headless at 393 px). Real-device speed of Hard/hint is reasoned to be fine, not measured.
 - Online with 3–4 real people at once (tested with 2 browsers + computers).
 - Online reconnect after a phone sleeps for a long time.
+- Design pass checked at 393x659 and 1440x900 only; 1280x720 laptop and iPhone SE heights not screenshotted (sizes are clamps by vh/vw, reasoned to fit).
 
 ## Rejected / parked
 - See docs/ideas.md (6 ideas skipped, each with a reason).
