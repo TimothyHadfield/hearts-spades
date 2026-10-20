@@ -356,3 +356,16 @@ table.mini tr.me td { color: var(--text); font-weight: 700; }
 }
 @media (max-width: 360px) { :root { --cw: 46px; --tw: 44px; } .seat-score { font-size: 14px; } }
 @media (max-height: 640px) and (max-width: 899px) { :root { --cw: 46px; --tw: 44px; } .trick .slot.s0 { top: 36px; } .trick .slot.s2 { top: -36px; } }
+
+/* ---------------------------------------------------------------- online */
+.fld { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.fld input, .on-row input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 16px; min-height: 42px; color: var(--text); width: 100%; }
+.on-row { display: flex; gap: 8px; align-items: center; }
+.on-row .btn { flex: none; min-width: 110px; }
+.on-row input { text-transform: uppercase; letter-spacing: .2em; }
+.on-or { text-align: center; color: var(--muted); font-size: 12px; margin: 12px 0 8px; }
+.lobby .on-code-big { text-align: center; font-size: 34px; font-weight: 800; letter-spacing: .22em; padding-left: .22em; font-variant-numeric: tabular-nums; }
+.on-seats { display: flex; flex-direction: column; gap: 6px; }
+.on-seat { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+.on-seat .pos { width: 52px; flex: none; color: var(--muted); font-size: 12px; }
+.on-seat .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

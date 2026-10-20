@@ -4,15 +4,20 @@
 (function (root) {
   "use strict";
   const { Cards: C, Spades: S_, SpadesAI: AI, Table: T, Art, Store } = root;
-  const NAMES = ["You", "Left", "Partner", "Right"];
-  const ME = 0;
+  const BASE_NAMES = ["You", "Left", "Partner", "Right"];
+  let NAMES = BASE_NAMES;   // by position relative to you
+  let ME = 0;               // your seat (0 on this device; online it's the seat you got)
+  let US = 0, THEM = 1;     // your team and theirs (seats 0+2 are team 0, 1+3 team 1)
+  let R = null;             // online room: { snap } while you're in one
   let el = null, S = null, gen = 0;
+  const nm = (s) => NAMES[T.rel(s, ME)];
 
   const cfg = () => Store.data.spades;
   const delay = () => (Store.data.hearts.speed === "fast" ? 260 : 620);
   const bidTxt = (h, s) => (h.bids[s] === null ? "…" : h.bids[s] === 0 ? (h.blind[s] ? "Blind nil" : "Nil") : "Bid " + h.bids[s]);
 
   function persist() {
+    if (S && S.online) return;   // online games live in the room
     Store.data.games.spades = S ? { game: S.game, level: S.level, handStudy: S.handStudy, looked: S.looked, recorded: S.recorded, bidLoss: S.bidLoss } : null;
     Store.save();
   }
@@ -55,6 +60,7 @@
   function step() {
     if (!S || S.busy) return render();
     render();
+    if (S.online) return;        // online, the host's browser plays the computers
     const a = actor();
     if (!a || a.seat === ME) return;
     const my = gen, g = S.game;
@@ -105,10 +111,10 @@
     S.recorded = g.handNo;
     const rec = Store.data.record.spades;
     const lost = S.handStudy.reduce((a, x) => a + x.lost, 0) + (S.bidLoss ? S.bidLoss.lost : 0);
-    rec.hands++; rec.pts += g.hand.result[0].points; rec.lost += lost;
-    Store.data.study.spades.push({ t: Date.now(), pts: g.hand.result[0].points, them: g.hand.result[1].points, lost: +lost.toFixed(1), level: S.level });
+    rec.hands++; rec.pts += g.hand.result[US].points; rec.lost += lost;
+    Store.data.study.spades.push({ t: Date.now(), pts: g.hand.result[US].points, them: g.hand.result[THEM].points, lost: +lost.toFixed(1), level: S.level });
     if (Store.data.study.spades.length > 400) Store.data.study.spades.shift();
-    if (g.over) { rec.played++; if (g.winner === 0) rec.won++; }
+    if (g.over) { rec.played++; if (g.winner === US) rec.won++; }
     persist();
   }
 
@@ -190,8 +196,8 @@
     for (let s = 0; s < 4; s++) {
       const pos = T.POS[T.rel(s, ME)];
       const sub = h.phase === "bid" && h.bids[s] === null ? (h.bidTurn === s ? "bidding…" : "") : `${bidTxt(h, s)} · won ${h.tricks[s]}`;
-      seats += T.seatHTML({ pos, seat: s, name: NAMES[T.rel(s, ME)], score: s % 2 === 0 ? (s === ME ? "" : "") : "", sub, cpu: s !== ME, initial: "Y",
-        them: s % 2 === 1, turn: a && a.seats ? false : a && a.seat === s && !S.busy, count: s !== ME ? h.hands[s].length : null });
+      seats += T.seatHTML({ pos, seat: s, name: NAMES[T.rel(s, ME)], score: "", sub, cpu: isCpu(s), initial: nm(s)[0],
+        them: s % 2 !== US, turn: a && a.seats ? false : a && a.seat === s && !S.busy, count: s !== ME ? h.hands[s].length : null });
     }
     seats = seats.replace(/<span class="seat-score"><\/span>/g, "");
 
@@ -203,8 +209,8 @@
 
     const makeChip = S.make && S.make.bid !== null && h.phase === "play" ? makeChipHTML() : "";
 
-    const bar = `<div class="bar"><div class="grow"><span class="title">Us ${g.scores[0]} <span style="color:var(--muted);font-weight:500;font-size:12px">${g.bags[0]} bag${g.bags[0] === 1 ? "" : "s"}</span> · <span class="warm">Them ${g.scores[1]}</span> <span style="color:var(--muted);font-weight:500;font-size:12px">${g.bags[1]}</span></span>` +
-      `<span class="meta">Hand ${g.handNo + (h.phase === "done" ? 0 : 1)} · to ${g.opts.target} · ${S.level}${h.phase === "play" ? ` · bids ${teamBid(h, 0)}–${teamBid(h, 1)}` : ""}</span></div>` +
+    const bar = `<div class="bar"><div class="grow"><span class="title">Us ${g.scores[US]} <span style="color:var(--muted);font-weight:500;font-size:12px">${g.bags[US]} bag${g.bags[US] === 1 ? "" : "s"}</span> · <span class="warm">Them ${g.scores[THEM]}</span> <span style="color:var(--muted);font-weight:500;font-size:12px">${g.bags[THEM]}</span></span>` +
+      `<span class="meta">Hand ${g.handNo + (h.phase === "done" ? 0 : 1)} · to ${g.opts.target} · ${S.level}${h.phase === "play" ? ` · bids ${teamBid(h, US)}–${teamBid(h, THEM)}` : ""}</span></div>` +
       `<button class="btn sm hint-btn${S.hint ? " on" : ""}${S.thinking ? " thinking" : ""}" data-act="hint" ${myAct && S.looked && !S.thinking ? "" : "disabled"}>Hint</button>` +
       `<button class="icon-btn" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>`;
 
@@ -225,7 +231,7 @@
     const p = S.make.bid;
     const color = T.scaleColor(1 - p, 0, 1);
     let nil = "";
-    for (let s = 0; s < 4; s++) if (S.game.hand.bids[s] === 0 && S.game.hand.tricks[s] === 0) nil += ` · ${NAMES[s]} nil ${Math.round(S.make.nil[s] * 100)}%`;
+    for (let s = 0; s < 4; s++) if (S.game.hand.bids[s] === 0 && S.game.hand.tricks[s] === 0) nil += ` · ${T.esc(nm(s))} nil ${Math.round(S.make.nil[s] * 100)}%`;
     return `<div class="moon" style="background:rgba(10,14,22,.85);border-color:var(--line);color:var(--text)">Make our bid <b style="color:${color}">${Math.round(p * 100)}%</b>${nil}${T.help("makeBid")}</div>`;
   }
 
@@ -249,7 +255,7 @@
     if (myAct === "bid") {
       if (!S.looked) msg = `<b>Blind nil?</b><span class="small">Decide before you look ${T.help("blindNil")}</span>`;
       else {
-        msg = `<b>Your bid</b><span class="small">${[1, 2, 3].map((k) => (ME + k) % 4).filter((s) => h.bids[s] !== null).map((s) => NAMES[s] + " " + bidTxt(h, s).replace("Bid ", "")).join(" · ") || "You bid first"}</span>`;
+        msg = `<b>Your bid</b><span class="small">${[1, 2, 3].map((k) => (ME + k) % 4).filter((s) => h.bids[s] !== null).map((s) => T.esc(nm(s)) + " " + bidTxt(h, s).replace("Bid ", "")).join(" · ") || "You bid first"}</span>`;
         const p = S.bidPick;
         btn = `<button class="btn warm" data-act="bid" ${p === null ? "disabled" : ""}>${p === null ? "Bid" : p === 0 ? "Bid nil" : "Bid " + p}</button>`;
       }
@@ -263,7 +269,7 @@
       msg = `<b>${g.over ? "Game over" : "Hand over"}</b>` + lossLine();
     } else {
       const a = actor();
-      msg = (S.busy && S.showTrick ? `${NAMES[S.showTrick.winner]} take${S.showTrick.winner === ME ? "" : "s"} it` : a ? `${NAMES[a.seat]} is ${a.kind === "bid" ? "bidding" : a.kind === "exchange" ? "passing cards" : "playing"}…` : "") + lossLine();
+      msg = (S.busy && S.showTrick ? `${T.esc(nm(S.showTrick.winner))} take${S.showTrick.winner === ME ? "" : "s"} it` : a ? `${T.esc(nm(a.seat))} is ${a.kind === "bid" ? "bidding" : a.kind === "exchange" ? "passing cards" : "playing"}…` : "") + lossLine();
     }
     return `<div class="msg">${msg}</div>${btn}`;
   }
@@ -305,7 +311,7 @@
   }
 
   function blindPanelHTML() {
-    return `<div class="panel-c"><h3>Blind nil?</h3><p class="muted" style="margin:0 0 10px">You're behind by ${S.game.scores[1] - S.game.scores[0]}. Bid nil without looking for ±200.</p>` +
+    return `<div class="panel-c"><h3>Blind nil?</h3><p class="muted" style="margin:0 0 10px">You're behind by ${S.game.scores[THEM] - S.game.scores[US]}. Bid nil without looking for ±200.</p>` +
       `<div class="row"><button class="btn" data-act="look">Look at cards</button><span style="flex:1"></span><button class="btn warm" data-act="blind">Blind nil</button></div></div>`;
   }
 
@@ -313,13 +319,13 @@
     const g = S.game, h = g.hand;
     const team = (t) => {
       const r = h.result[t];
-      return `<div style="margin-bottom:8px"><div class="row" style="justify-content:space-between"><b class="${t ? "warm" : ""}">${t ? "Them" : "Us"}</b><b>${r.points >= 0 ? "+" : ""}${r.points} → ${g.scores[t]}</b></div>` +
-        `<div class="muted">${[t, t + 2].map((s) => `${NAMES[s]} ${bidTxt(h, s).replace("Bid ", "bid ")}, took ${h.tricks[s]}`).join(" · ")}</div>` +
+      return `<div style="margin-bottom:8px"><div class="row" style="justify-content:space-between"><b class="${t !== US ? "warm" : ""}">${t !== US ? "Them" : "Us"}</b><b>${r.points >= 0 ? "+" : ""}${r.points} → ${g.scores[t]}</b></div>` +
+        `<div class="muted">${[t, t + 2].map((s) => `${T.esc(nm(s))} ${bidTxt(h, s).replace("Bid ", "bid ")}, took ${h.tricks[s]}`).join(" · ")}</div>` +
         `<div class="muted">${r.parts.map((p) => `${T.esc(p.label)} ${p.pts >= 0 ? "+" : ""}${p.pts}`).join(" · ")} · bags ${g.bags[t]}</div></div>`;
     };
     const lost = S.handStudy.reduce((a, x) => a + x.lost, 0) + (S.bidLoss ? S.bidLoss.lost : 0);
-    const title = g.over ? (g.winner === 0 ? "You win!" : "They win") : "Hand " + g.handNo;
-    return `<div class="panel-c"><h3>${title}</h3>${team(0)}${team(1)}` +
+    const title = g.over ? (g.winner === US ? "You win!" : "They win") : "Hand " + g.handNo;
+    return `<div class="panel-c"><h3>${title}</h3>${team(US)}${team(THEM)}` +
       (cfg().study ? `<div class="muted">Points lost this hand: <b style="color:${lost < 5 ? "var(--good)" : lost < 20 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(0)}</b> ${T.help("lost")}</div>` : "") +
       `<div class="row" style="margin-top:12px"><span style="flex:1"></span>${g.over ? `<button class="btn primary" data-act="new">New game</button>` : `<button class="btn primary" data-act="next">Next hand</button>`}</div></div>`;
   }
@@ -328,9 +334,9 @@
     const g = S.game, h = g.hand;
     let hist = `<table class="mini"><tr><th>#</th><th>Us</th><th>Them</th></tr>`;
     g.history.slice(-8).forEach((x, i) => {
-      hist += `<tr><td>${g.history.length - Math.min(8, g.history.length) + i + 1}</td><td>${x.pts[0]}</td><td>${x.pts[1]}</td></tr>`;
+      hist += `<tr><td>${g.history.length - Math.min(8, g.history.length) + i + 1}</td><td>${x.pts[US]}</td><td>${x.pts[THEM]}</td></tr>`;
     });
-    hist += `<tr class="me"><td>Total</td><td>${g.scores[0]}</td><td>${g.scores[1]}</td></tr><tr><td>Bags ${T.help("bags")}</td><td>${g.bags[0]}</td><td>${g.bags[1]}</td></tr></table>`;
+    hist += `<tr class="me"><td>Total</td><td>${g.scores[US]}</td><td>${g.scores[THEM]}</td></tr><tr><td>Bags ${T.help("bags")}</td><td>${g.bags[US]}</td><td>${g.bags[THEM]}</td></tr></table>`;
     let study = S.handStudy.map((x) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>Trick ${x.trick} · ${C.name(x.card)}${x.best !== x.card ? ` <span style="color:var(--muted)">(best ${C.name(x.best)})</span>` : ""}</span><b style="color:${x.lost < 2 ? "var(--good)" : x.lost < 8 ? "var(--accent-warm)" : "var(--bad)"}">${x.lost.toFixed(0)}</b></div>`).join("");
     if (S.bidLoss) study = `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>Bid ${S.bidLoss.mine === 0 ? "nil" : S.bidLoss.mine}${S.bidLoss.best !== S.bidLoss.mine ? ` <span style="color:var(--muted)">(best ${S.bidLoss.best === 0 ? "nil" : S.bidLoss.best})</span>` : ""}</span><b>${S.bidLoss.lost.toFixed(0)}</b></div>` + study;
     return `<div class="side-sec"><h4>Scores · game to ${g.opts.target}</h4>${hist}</div>` +
@@ -338,7 +344,15 @@
       (cfg().study ? `<div class="side-sec fill"><h4>Points lost ${T.help("lost")}</h4>${study || `<div class="muted" style="font-size:13px">Your bid and plays show here with the points each one lost.</div>`}</div>` : "");
   }
 
+  const isCpu = (s) => (R && R.snap && R.snap.seats ? R.snap.seats[s].kind !== "human" : s !== ME);
+
   function renderStart() {
+    if (R && R.snap && R.snap.status === "lobby") {
+      el.innerHTML = `<div class="game"><div class="game-main">` +
+        `<div class="bar"><div class="grow"><span class="title">Spades</span><span class="meta">Online room · partners sit across</span></div></div>` +
+        `<div class="felt">${root.OnlineUI.lobbyHTML(R.snap, (i) => i === ME ? "You" : BASE_NAMES[T.rel(i, ME)])}</div></div></div>`;
+      return;
+    }
     const c = cfg();
     const lv = ["easy", "medium", "hard"];
     const rules = [`Game to ${c.target}`, c.nil ? (c.blindNil ? "nil + blind nil" : "nil on") : "no nil",
@@ -353,16 +367,19 @@
       `<div style="display:flex;align-items:center;font-size:13px;color:var(--muted)">Computer level ${T.help("level", "spades")}</div>` +
       `<div class="seg levels" data-act="level">${lv.map((l) => `<button data-level="${l}" aria-pressed="${c.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join("")}</div>` +
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
-      `<button class="btn primary wide" data-act="deal">Deal</button></div></div></div></div>`;
+      `<button class="btn primary wide" data-act="deal">Deal</button>` +
+      `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button></div></div></div></div>`;
   }
 
   // ------------------------------------------------------------------ input
   function onClick(e) {
     const a = e.target.closest("[data-act]");
     const cardEl = e.target.closest(".hc");
+    if (e.target.closest("[data-on],[data-on-seat]") && R) { root.OnlineUI.lobbyClick("spades", e); return; }
     if (a && el.contains(a)) {
       const act = a.dataset.act;
       if (act === "deal") return newGame();
+      if (act === "online") return openOnline();
       if (act === "level") { const b = e.target.closest("[data-level]"); if (b) { cfg().level = b.dataset.level; Store.save(); render(); } return; }
       if (act === "go-settings") { e.preventDefault(); return root.App.go("settings"); }
       if (act === "hint") return hint();
@@ -372,8 +389,8 @@
       if (act === "blind") return submitBid(0, true);
       if (act === "look") { S.looked = true; S.dealAnim = true; persist(); return render(); }
       if (act === "give") return give();
-      if (act === "next") return dealNext();
-      if (act === "new") { S = null; persist(); return render(); }
+      if (act === "next") return S.online ? send({ type: "next" }) : dealNext();
+      if (act === "new") { if (S.online) return root.OnlineUI.leave("spades"); S = null; persist(); return render(); }
       if (act === "tracker") return T.openSheet(`<h3>Cards left ${T.help("tracker")}</h3>` + T.trackerDetailHTML(T.trackerData(S.game.hand, ME), NAMES, ME, null));
     }
     if (cardEl && S) tapCard(+cardEl.dataset.card);
@@ -382,8 +399,14 @@
   function submitBid(bid, blind) {
     if (bid === null || bid === undefined) return;
     const g = S.game;
-    try { S.game = S_.apply(g, { type: "bid", seat: ME, bid, blind }); }
-    catch (err) { T.toast(err.message); return; }
+    if (S.online) {
+      if (S.sending) return;
+      if (blind) { S.looked = true; S.dealAnim = true; }
+      send({ type: "bid", bid, blind });
+    } else {
+      try { S.game = S_.apply(g, { type: "bid", seat: ME, bid, blind }); }
+      catch (err) { T.toast(err.message); return; }
+    }
     if (cfg().study && !blind) {
       // Points lost for the bid, from the advisor's numbers (it may still be finishing).
       const my = gen, hn = g.handNo;
@@ -393,12 +416,14 @@
         if (mineEv !== null) { S.bidLoss = { mine: bid, best: A.best.bid, lost: Math.max(0, A.best.ev - mineEv) }; persist(); if (!S.busy) render(); }
       });
     }
+    if (S.online) return;
     if (blind) { S.looked = true; S.dealAnim = true; }
     persist(); step();
   }
 
   function give() {
     if (S.sel.size !== 2) return;
+    if (S.online) return send({ type: "exchange", cards: [...S.sel] });
     S.game = S_.apply(S.game, { type: "exchange", seat: ME, cards: [...S.sel] });
     S.sel.clear(); persist(); step();
   }
@@ -413,11 +438,27 @@
     }
     if (a.kind !== "play") return;
     if (!S_.legal(h, ME).includes(card)) { T.toast(h.trick.length ? "Follow suit if you can" : "Spades aren't broken yet"); return; }
-    if (S.sel.has(card)) return doPlay(ME, card);
+    if (S.sel.has(card)) {
+      if (!S.online) return doPlay(ME, card);
+      if (S.sending) return;
+      recordLoss(g, card); S.hint = null;
+      return send({ type: "play", card });
+    }
     S.sel = new Set([card]); render();
   }
 
   function menu() {
+    if (S.online) {
+      T.openSheet(`<h3>Online room ${T.esc(R.snap.code || "")}</h3><p>First team to ${S.game.opts.target} wins. If you leave, a computer takes your seat.</p>` +
+        `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="leave">Leave room</button><button class="btn" data-m="rules">Rules</button></div>`,
+        (sh) => sh.addEventListener("click", (e) => {
+          const b = e.target.closest("[data-m]");
+          if (!b) return;
+          if (b.dataset.m === "leave") { T.closeSheet(); root.OnlineUI.leave("spades"); }
+          if (b.dataset.m === "rules") { T.closeSheet(); setTimeout(() => root.Lab.rulesSheet("spades"), 30); }
+        }));
+      return;
+    }
     T.openSheet(`<h3>Spades</h3><p>You and Partner against Left and Right. First team to ${S.game.opts.target} wins.</p>` +
       `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="new">New game</button><button class="btn" data-m="rules">Rules</button><button class="btn" data-m="strength">How strong?</button></div>`,
       (sh) => sh.addEventListener("click", (e) => {
@@ -429,6 +470,87 @@
       }));
   }
 
+  // ----------------------------------------------------------------- online
+  function openOnline() {
+    const o = Object.assign(optsFromCfg(), { level: cfg().level });
+    root.OnlineUI.openSheet("spades", o, onSnap);
+  }
+
+  function send(action) {
+    if (S.sending) return;
+    S.sending = true;
+    root.OnlineUI.act("spades", action).then((r) => {
+      if (!S) return;
+      S.sending = false;
+      if (r && r.ok) S.sel.clear();
+      render();
+    });
+  }
+
+  function onSnap(snap) {
+    if (!snap || ["left", "closed", "none"].includes(snap.status) || (snap.mySeat != null && snap.mySeat < 0 && snap.status !== "joining")) {
+      const wasOnline = !!R;
+      R = null; ME = 0; US = 0; THEM = 1; NAMES = BASE_NAMES;
+      if (wasOnline && (!S || S.online)) { gen++; S = null; restore(); }
+      if (wasOnline && snap && snap.status === "closed") T.toast("The room closed");
+      if (root.App && root.App.tab === "spades") render();
+      return;
+    }
+    if (snap.status === "joining") return;
+    R = { snap };
+    ME = snap.mySeat; US = ME % 2; THEM = 1 - US;
+    NAMES = [0, 1, 2, 3].map((k) => (k === 0 ? "You" : snap.seats[(ME + k) % 4].kind === "human" ? snap.seats[(ME + k) % 4].name : BASE_NAMES[k]));
+    if (snap.status === "lobby" || !snap.pub || !snap.mine) {
+      if (S) { if (!S.online) persist(); gen++; S = null; }
+      return render();
+    }
+    const g = root.NetGames.merge("spades", snap.pub, snap.mine);
+    if (!S || !S.online) {
+      gen++;
+      S = blank(g, snap.pub.level);
+      S.online = true; S.dealAnim = true;
+      S.looked = !(g.hand && g.hand.phase === "bid" && g.hand.bids[ME] === null && S_.blindNilAllowed(g, ME));
+      if (g.hand && g.hand.phase === "play") updateMake();
+      return render();
+    }
+    applyRemote(g);
+  }
+
+  /** Draw the new online state the way a local move is drawn (cards fly in, tricks sweep). */
+  function applyRemote(g) {
+    const old = S.game, oh = old.hand, h = g.hand;
+    S.game = g;
+    S.level = g.level || S.level;
+    if (!oh || !h) return render();
+    const newHand = (oh.phase === "done" && h.phase !== "done") || h.trickNo < oh.trickNo;
+    if (newHand) {
+      Object.assign(S, { sel: new Set(), freshTrick: new Set(), hint: null, lastLoss: null, handStudy: [], advice: null, adviceP: null, bidPick: null, make: null, bidLoss: null, thinking: false, showTrick: null, collecting: false, busy: false });
+      S.looked = !(h.phase === "bid" && h.bids[ME] === null && S_.blindNilAllowed(g, ME));
+      S.dealAnim = S.looked;
+      return render();
+    }
+    if (oh.phase !== "play" && h.phase === "play") updateMake();
+    if (h.trickNo > oh.trickNo || (h.phase === "done" && oh.phase === "play")) {
+      const done = h.lastTrick;
+      for (const t of done.cards) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);
+      const my = gen;
+      S.showTrick = done; S.busy = true; render();
+      setTimeout(() => {
+        if (my !== gen || !S) return;
+        S.collecting = true; render();
+        setTimeout(() => {
+          if (my !== gen || !S) return;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
+          if (S.game.hand.phase === "done") onHandDone(); else updateMake();
+          render();
+        }, 380);
+      }, Store.data.hearts.speed === "fast" ? 550 : 950);
+      return;
+    }
+    for (const t of h.trick) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);
+    if (!S.busy) render();
+  }
+
   function mount(view) {
     el = view;
     el.addEventListener("click", onClick);
@@ -438,8 +560,9 @@
     window.addEventListener("resize", () => T.fitHand(el.querySelector(".hand-wrap")));
     restore();
     if (S && S.game.hand.phase === "play") updateMake();
+    if (root.OnlineUI && root.OnlineUI.savedRoom("spades")) root.OnlineUI.resume("spades", onSnap);
   }
   function show() { if (S) step(); else render(); }
 
-  root.SpadesUI = { mount, show, render, get state() { return S; }, newGame };
+  root.SpadesUI = { mount, show, render, get state() { return S; }, get room() { return R; }, newGame };
 })(typeof self !== "undefined" ? self : globalThis);

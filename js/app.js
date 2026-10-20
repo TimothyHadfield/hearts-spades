@@ -65,7 +65,7 @@
       if (group !== "helpers") out += `<p class="muted" style="font-size:12px;margin:6px 0 0">Rule changes start with your next new game.</p>`;
       out += `</div>`;
     }
-    out += `<div class="sec"><h3>Online</h3><p class="muted" style="font-size:13px;margin:0">Playing with friends online is coming: seats will be you, a computer or a friend with a join code.</p></div>`;
+    out += `<div class="sec"><h3>Online</h3><p class="muted" style="font-size:13px;margin:0">On the Hearts or Spades table, tap Play online to make a room and send friends its code. Empty seats are played by computers.</p></div>`;
     out += `</div><p class="ver">Version ${Store.VERSION} · <a href="../">More board &amp; card games</a></p></div></div>`;
     return out;
   }

@@ -5,8 +5,10 @@
 (function (root) {
   "use strict";
   const { Cards: C, Hearts: H, HeartsAI: AI, Table: T, Art, Store } = root;
-  const NAMES = ["You", "Left", "Across", "Right"];
-  const ME = 0;
+  const BASE_NAMES = ["You", "Left", "Across", "Right"];
+  let NAMES = BASE_NAMES;   // by position relative to you: you, left, across, right
+  let ME = 0;               // your seat (0 on this device; online it's whatever seat you got)
+  let R = null;             // online room: { snap } while you're in one
   const HINT_SAMPLES = 120;
   let el = null;
   let S = null;    // runtime state for the game in progress (null = start screen)
@@ -16,6 +18,7 @@
   const delay = () => (cfg().speed === "fast" ? 260 : 620);
 
   function persist() {
+    if (S && S.online) return;   // online games live in the room, not in this browser
     Store.data.games.hearts = S ? { game: S.game, level: S.level, handStudy: S.handStudy, fresh: [...S.fresh], recorded: S.recorded } : null;
     Store.save();
   }
@@ -62,6 +65,7 @@
     if (!S || S.busy) return render();
     const g = S.game, h = g.hand;
     render();
+    if (S.online) return;        // online, the host's browser plays the computers
     if (!h || h.phase !== "play" || g.over) return;
     if (h.turn === ME) return;
     const my = gen, g0 = S.game;
@@ -177,6 +181,8 @@
   }
 
   // ---------------------------------------------------------------- render
+  const isCpu = (s) => (R && R.snap && R.snap.seats ? R.snap.seats[s].kind !== "human" : s !== ME);
+
   function seatSub(h, s) {
     if (!h) return "";
     let out = `<span class="pts">${h.taken[s] ? "♥ " + h.taken[s] : "♥ 0"}</span>`;
@@ -198,7 +204,7 @@
     for (let s = 0; s < 4; s++) {
       const pos = T.POS[T.rel(s, ME)];
       seats += T.seatHTML({
-        pos, seat: s, name: NAMES[T.rel(s, ME)], score: g.scores[s], sub: seatSub(h, s), cpu: s !== ME, initial: "Y",
+        pos, seat: s, name: NAMES[T.rel(s, ME)], score: g.scores[s], sub: seatSub(h, s), cpu: isCpu(s), initial: NAMES[T.rel(s, ME)][0],
         turn: h.phase === "play" && h.turn === s && !S.busy, count: s !== ME ? h.hands[s].length : null,
       });
     }
@@ -285,12 +291,12 @@
     const g = S.game, h = g.hand, r = h.result;
     const lost = S.handStudy.reduce((a, x) => a + x.lost, 0);
     let rows = "";
-    const order = [0, 1, 2, 3];
+    const order = [0, 1, 2, 3].map((k) => (ME + k) % 4);
     const low = Math.min(...g.scores);
     for (const s of order) {
       rows += `<tr class="${s === ME ? "me" : ""}"><td>${NAMES[T.rel(s, ME)]}</td><td>${h.taken[s]}</td><td>${r.pts[s] > 0 ? "+" : ""}${r.pts[s]}</td><td class="${g.scores[s] === low ? "good" : ""}">${g.scores[s]}</td></tr>`;
     }
-    let title = g.over ? (g.winners.includes(ME) ? (g.winners.length > 1 ? "You tie for the win" : "You win!") : NAMES[g.winners[0]] + " wins") : "Hand " + g.handNo;
+    let title = g.over ? (g.winners.includes(ME) ? (g.winners.length > 1 ? "You tie for the win" : "You win!") : NAMES[T.rel(g.winners[0], ME)] + " wins") : "Hand " + g.handNo;
     let note = r.moonBy >= 0 ? `<div class="warm" style="margin-bottom:6px;font-weight:700">${NAMES[T.rel(r.moonBy, ME)]} shot the moon!</div>` : "";
     return `<div class="panel-c"><h3>${T.esc(title)}</h3>${note}<table class="mini"><tr><th></th><th>Took</th><th>Scored</th><th>Total</th></tr>${rows}</table>` +
       (cfg().study && S.handStudy.length ? `<div class="muted" style="margin-top:8px">Your points lost this hand: <b style="color:${lost < 1 ? "var(--good)" : lost < 4 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(1)}</b> ${T.help("lost")}</div>` : "") +
@@ -300,7 +306,7 @@
 
   function sideHTML(td) {
     const g = S.game, h = g.hand;
-    let hist = `<table class="mini"><tr><th>#</th>${[0, 1, 2, 3].map((s) => `<th>${NAMES[s].slice(0, 6)}</th>`).join("")}</tr>`;
+    let hist = `<table class="mini"><tr><th>#</th>${[0, 1, 2, 3].map((s) => `<th>${T.esc(NAMES[T.rel(s, ME)].slice(0, 6))}</th>`).join("")}</tr>`;
     g.history.slice(-8).forEach((x, i) => {
       const n = g.history.length - Math.min(8, g.history.length) + i + 1;
       hist += `<tr><td>${n}</td>${x.pts.map((p) => `<td>${p}</td>`).join("")}</tr>`;
@@ -338,6 +344,12 @@
   }
 
   function renderStart() {
+    if (R && R.snap && R.snap.status === "lobby") {
+      el.innerHTML = `<div class="game"><div class="game-main">` +
+        `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">Online room · ${T.esc(R.snap.options && R.snap.options.level || "medium")} computers</span></div></div>` +
+        `<div class="felt">${root.OnlineUI.lobbyHTML(R.snap, (i) => i === ME ? "You" : BASE_NAMES[T.rel(i, ME)])}</div></div></div>`;
+      return;
+    }
     const c = cfg();
     const lv = ["easy", "medium", "hard"];
     const rules = [`Game to ${c.target}`, c.passing === "none" ? "no passing" : c.passing === "left" ? "pass left only" : c.passing === "cycle3" ? "pass L/R/across" : "pass L/R/across/keep",
@@ -354,6 +366,7 @@
       `<div class="seg levels" data-act="level">${lv.map((l) => `<button data-level="${l}" aria-pressed="${c.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join("")}</div>` +
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
       `<button class="btn primary wide" data-act="deal">Deal</button>` +
+      `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button>` +
       `</div></div></div></div>`;
   }
 
@@ -361,9 +374,11 @@
   function onClick(e) {
     const a = e.target.closest("[data-act]");
     const cardEl = e.target.closest(".hc");
+    if (e.target.closest("[data-on],[data-on-seat]") && R) { root.OnlineUI.lobbyClick("hearts", e); return; }
     if (a && el.contains(a)) {
       const act = a.dataset.act;
       if (act === "deal") return newGame();
+      if (act === "online") return openOnline();
       if (act === "level") {
         const b = e.target.closest("[data-level]");
         if (b) { cfg().level = b.dataset.level; Store.save(); render(); }
@@ -373,8 +388,8 @@
       if (act === "hint") return hint();
       if (act === "menu") return menu();
       if (act === "pass") return submitPass();
-      if (act === "next") return dealNext();
-      if (act === "new") { S = null; persist(); return render(); }
+      if (act === "next") return S.online ? send({ type: "next" }) : dealNext();
+      if (act === "new") { if (S.online) return root.OnlineUI.leave("hearts"); S = null; persist(); return render(); }
       if (act === "reveal") return reveal();
       if (act === "tracker") return trackerSheet();
     }
@@ -390,7 +405,12 @@
     }
     if (h.phase !== "play" || h.turn !== ME || S.busy) return;
     if (!H.legal(h, ME).includes(card)) { T.toast(h.trick.length ? "Follow suit if you can" : (h.trickNo === 0 ? "The 2♣ leads first" : "Hearts aren't broken yet")); return; }
-    if (S.sel.has(card)) return doPlay(ME, card);
+    if (S.sel.has(card)) {
+      if (!S.online) return doPlay(ME, card);
+      if (S.sending) return;
+      recordLoss(h, card); S.hint = null; S.fresh.clear();
+      return send({ type: "play", card });
+    }
     S.sel = new Set([card]);
     render();
   }
@@ -398,6 +418,7 @@
   function submitPass() {
     const h = S.game.hand;
     if (S.sel.size !== 3) return;
+    if (S.online) return send({ type: "pass", cards: [...S.sel] });
     S.game = H.apply(S.game, { type: "pass", seat: ME, cards: [...S.sel] });
     S.fresh = new Set(S.game.hand.received[ME] || []);
     S.sel.clear(); S.hint = null;
@@ -406,6 +427,17 @@
   }
 
   function menu() {
+    if (S.online) {
+      T.openSheet(`<h3>Online room ${T.esc(R.snap.code || "")}</h3><p>Lowest score wins once someone reaches ${S.game.opts.target}. If you leave, a computer takes your seat.</p>` +
+        `<div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="leave">Leave room</button><button class="btn" data-m="rules">Rules</button></div>`,
+        (sh) => sh.addEventListener("click", (e) => {
+          const b = e.target.closest("[data-m]");
+          if (!b) return;
+          if (b.dataset.m === "leave") { T.closeSheet(); root.OnlineUI.leave("hearts"); }
+          if (b.dataset.m === "rules") { T.closeSheet(); setTimeout(() => root.Lab.rulesSheet("hearts"), 30); }
+        }));
+      return;
+    }
     T.openSheet(`<h3>Hearts</h3><p>Lowest score wins once someone reaches ${S.game.opts.target}.</p>` +
       `<div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="new">New game</button><button class="btn" data-m="rules">Rules</button><button class="btn" data-m="strength">How strong?</button></div>`,
       (sh) => sh.addEventListener("click", (e) => {
@@ -433,6 +465,89 @@
     T.openSheet(out);
   }
 
+  // ----------------------------------------------------------------- online
+  function openOnline() {
+    const c = cfg();
+    root.OnlineUI.openSheet("hearts", { level: c.level, target: c.target, moon: c.moon, jack: c.jack, queenBreaks: c.queenBreaks, bleed: c.bleed, passing: c.passing }, onSnap);
+  }
+
+  function send(action) {
+    if (S.sending) return;
+    S.sending = true;
+    root.OnlineUI.act("hearts", action).then((r) => {
+      if (!S) return;
+      S.sending = false;
+      if (r && r.ok) { S.sel.clear(); }
+      render();
+    });
+  }
+
+  /** Every change in the online room lands here: lobby, moves, hand over, room closed. */
+  function onSnap(snap) {
+    if (!snap || ["left", "closed", "none"].includes(snap.status) || (snap.mySeat != null && snap.mySeat < 0 && snap.status !== "joining")) {
+      const wasOnline = !!R;
+      R = null; ME = 0; NAMES = BASE_NAMES;
+      if (wasOnline && (!S || S.online)) { gen++; S = null; restore(); }
+      if (wasOnline && snap && snap.status === "closed") T.toast("The room closed");
+      if (root.App && root.App.tab === "hearts") render();
+      return;
+    }
+    if (snap.status === "joining") return;
+    R = { snap };
+    ME = snap.mySeat;
+    NAMES = [0, 1, 2, 3].map((k) => (k === 0 ? "You" : snap.seats[(ME + k) % 4].kind === "human" ? snap.seats[(ME + k) % 4].name : BASE_NAMES[k]));
+    if (snap.status === "lobby" || !snap.pub || !snap.mine) {
+      if (S) { if (!S.online) persist(); gen++; S = null; }
+      return render();
+    }
+    const g = root.NetGames.merge("hearts", snap.pub, snap.mine);
+    if (!S || !S.online) {
+      gen++;
+      S = blank(g, snap.pub.level);
+      S.online = true; S.dealAnim = true;
+      if (g.hand && g.hand.phase === "play" && g.hand.received[ME]) S.fresh = new Set();
+      updateMoon();
+      return render();
+    }
+    applyRemote(g);
+  }
+
+  /** Draw the new online state the same way a local move is drawn (cards fly in, tricks sweep). */
+  function applyRemote(g) {
+    const old = S.game, oh = old.hand, h = g.hand;
+    S.game = g;
+    S.level = g.level || S.level;
+    if (!oh || !h) return render();
+    const newHand = (oh.phase === "done" && h.phase !== "done") || h.trickNo < oh.trickNo || old.handNo !== g.handNo && h.phase !== "done";
+    if (newHand) {
+      S.sel.clear(); S.fresh.clear(); S.freshTrick.clear(); S.hint = null; S.lastLoss = null; S.handStudy = []; S.moon = null; S.keyProbs = null;
+      S.showTrick = null; S.collecting = false; S.busy = false; S.dealAnim = true;
+      return render();
+    }
+    if (oh.phase === "pass" && h.phase === "play") { S.fresh = new Set(h.received[ME] || []); S.sel.clear(); S.hint = null; }
+    if (h.trickNo > oh.trickNo || (h.phase === "done" && oh.phase === "play")) {
+      // A trick finished: show all four cards, then sweep them to the winner.
+      const done = h.lastTrick;
+      for (const t of done.cards) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);
+      const my = gen;
+      S.showTrick = done; S.busy = true; render();
+      setTimeout(() => {
+        if (my !== gen || !S) return;
+        S.collecting = true; render();
+        setTimeout(() => {
+          if (my !== gen || !S) return;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.keyProbs = null;
+          if (S.game.hand.phase === "done") onHandDone();
+          updateMoon();
+          render();
+        }, 380);
+      }, cfg().speed === "fast" ? 550 : 950);
+      return;
+    }
+    for (const t of h.trick) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);
+    if (!S.busy) render();
+  }
+
   // ------------------------------------------------------------------ mount
   function mount(view) {
     el = view;
@@ -443,8 +558,9 @@
     window.addEventListener("resize", () => T.fitHand(el.querySelector(".hand-wrap")));
     restore();
     if (S) { updateMoon(); }
+    if (root.OnlineUI && root.OnlineUI.savedRoom("hearts")) root.OnlineUI.resume("hearts", onSnap);
   }
   function show() { if (S) step(); else render(); }
 
-  root.HeartsUI = { mount, show, render, get state() { return S; }, newGame };
+  root.HeartsUI = { mount, show, render, get state() { return S; }, get room() { return R; }, newGame };
 })(typeof self !== "undefined" ? self : globalThis);
