@@ -52,7 +52,7 @@
   }
 
   function settingsHTML() {
-    let out = `<div class="page"><div class="page-in"><h2>Settings</h2><div class="cols">`;
+    let out = `<div class="page"><div class="page-in set-page"><h2>Settings</h2><div class="cols">`;
     for (const [group, title, rows] of SCHEMA) {
       out += `<div class="sec"><h3>${title}</h3>`;
       for (const [key, label, type, opts, help] of rows) {

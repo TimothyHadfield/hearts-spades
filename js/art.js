@@ -7,6 +7,8 @@
   const C = root.Cards;
   const RED = "#c8372a", BLACK = "#1b1d26";
   const col = (s) => (s === 1 || s === 3 ? RED : BLACK);
+  // Times first: Georgia draws old-style numerals, so its "10" read as "1o" on small cards.
+  const SERIF = "'Times New Roman', Times, Georgia, serif";
 
   // Pip centres (x, y) for ranks 2..10; pips below the middle are drawn upside down.
   const L = 82, M = 125, R = 168;
@@ -28,14 +30,14 @@
   function corner(s, r) {
     const label = C.RANK_NAMES[r];
     const ten = label === "10";
-    return `<text x="${ten ? 40 : 38}" y="70" text-anchor="middle" font-size="${ten ? 58 : 66}" font-weight="800" font-family="Georgia, 'Times New Roman', serif" letter-spacing="${ten ? -5 : 0}">${label}</text>` +
-      use(s, 38, 106, 42);
+    return `<text x="${ten ? 41 : 38}" y="74" text-anchor="middle" font-size="${ten ? 60 : 72}" font-weight="800" font-family="${SERIF}" letter-spacing="${ten ? -6 : 0}">${label}</text>` +
+      use(s, 38, 110, 42);
   }
 
   function crown(kind, c) {
     if (kind === "K") return `<path d="M88 116l12-30 16 22 9-30 9 30 16-22 12 30z" fill="${c}" opacity=".9"/><rect x="88" y="116" width="74" height="10" rx="3" fill="#d9a531"/>`;
     if (kind === "Q") return `<path d="M95 120c10-10 20-14 30-24 10 10 20 14 30 24z" fill="#d9a531"/><circle cx="125" cy="92" r="6" fill="${c}"/><circle cx="104" cy="108" r="4" fill="${c}"/><circle cx="146" cy="108" r="4" fill="${c}"/>`;
-    return `<path d="M92 122c4-22 22-34 40-30 10 2 18 10 22 20-14-4-26 0-34 10z" fill="${c}" opacity=".9"/><path d="M150 100c10-14 16-20 30-22-6 8-12 16-22 26z" fill="#d9a531"/>`;
+    return `<path d="M92 122c4-22 22-34 40-30 10 2 18 10 22 20-14-4-26 0-34 10z" fill="${c}" opacity=".9"/><path d="M148 100c8-12 13-18 24-20-5 7-10 14-18 23z" fill="#d9a531"/>`;
   }
 
   function face(card) {
@@ -48,10 +50,11 @@
     } else {
       const k = C.RANK_NAMES[r];
       const tint = c === RED ? "#f6ddd5" : "#dfe4f0";
-      mid = `<rect x="58" y="70" width="134" height="210" rx="12" fill="${tint}" stroke="${c}" stroke-width="3"/>` +
-        `<rect x="66" y="78" width="118" height="194" rx="8" fill="none" stroke="#d9a531" stroke-width="2"/>` +
+      // The frame stays clear of the corner index, so a half-hidden court card in a fan shows a clean index strip.
+      mid = `<rect x="72" y="66" width="106" height="218" rx="12" fill="${tint}" stroke="${c}" stroke-width="3"/>` +
+        `<rect x="79" y="73" width="92" height="204" rx="8" fill="none" stroke="#d9a531" stroke-width="2"/>` +
         crown(k, c) +
-        `<text x="125" y="214" text-anchor="middle" font-size="92" font-weight="700" font-family="Georgia, 'Times New Roman', serif" fill="${c}">${k}</text>` +
+        `<text x="125" y="214" text-anchor="middle" font-size="92" font-weight="700" font-family="${SERIF}" fill="${c}">${k}</text>` +
         use(s, 125, 250, 34);
     }
     return `<svg viewBox="0 0 250 350" fill="${c}" aria-hidden="true">` +
