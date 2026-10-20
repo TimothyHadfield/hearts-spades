@@ -3,7 +3,7 @@
 (function (root) {
   "use strict";
   const KEY = "heartsSpades:v1";
-  const VERSION = "2026-10-19a";
+  const VERSION = "2026-10-19c";
 
   const DEFAULTS = {
     tab: "hearts",

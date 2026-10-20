@@ -6,7 +6,18 @@
   root.ThinkFns = {
     heartsEvaluate: (h, seat, samples, opts) => HA().evaluate(h, seat, samples, Math.random, opts),
     heartsMove: (h, seat, level, opts) => HA().chooseMove(h, seat, level, Math.random, opts),
-    heartsMoon: (h, viewer, target, samples) => HA().moonChance(h, viewer, target, samples, Math.random),
+    heartsKeyProbs: (h, me, N) => {
+      const C = root.Cards, H = root.Hearts;
+      const mine = new Set(h.hands[me]);
+      const keys = [H.QS, C.card(C.SPADES, 12), C.card(C.SPADES, 11), C.card(C.HEARTS, 12)].filter((c) => !h.played[c] && !mine.has(c));
+      const cnt = keys.map(() => [0, 0, 0]);
+      for (let i = 0; i < N; i++) {
+        const w = HA().sampleWorld(h, me, Math.random);
+        keys.forEach((c, j) => { for (let k = 1; k < 4; k++) if (w[(me + k) % 4].includes(c)) cnt[j][k - 1]++; });
+      }
+      return keys.map((c, j) => ({ card: c, p: cnt[j].map((x) => x / N) }));
+    },
+    heartsMoon:(h, viewer, target, samples) => HA().moonChance(h, viewer, target, samples, Math.random),
     spadesEvaluate: (g, seat, samples) => SA().evaluate(g, seat, samples, Math.random),
     spadesMove: (g, seat, level) => SA().chooseMove(g, seat, level, Math.random),
     spadesBid: (g, seat, level) => SA().chooseBid(g, seat, level, Math.random),

@@ -100,7 +100,7 @@
         S.collecting = true; render();
         setTimeout(() => {
           if (my !== gen) return;
-          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.keyProbs = null;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
           if (h.phase === "done") onHandDone();
           updateMoon();
           step();
@@ -324,23 +324,31 @@
 
   const sideVisible = () => root.matchMedia && root.matchMedia("(min-width: 900px)").matches;
 
-  /** Where are the queen, king and ace of spades likely to be? Sampled from what you know. */
+  /** Where are the queen, king and ace of spades likely to be? Sampled from what you know.
+   *  The side panel gets it from the background worker (old numbers stay up until the new ones land);
+   *  the phone's tracker sheet works it out on tap. */
   function keyProbs(force) {
     const h = S.game.hand;
     if (!h || h.phase !== "play") return null;
     if (!force && !sideVisible()) return null;
-    if (S.keyProbs && S.keyProbs.k === key(h)) return S.keyProbs.v;
-    const mine = new Set(h.hands[ME]);
-    const keys = [H.QS, C.card(C.SPADES, 12), C.card(C.SPADES, 11), C.card(C.HEARTS, 12)].filter((c) => !h.played[c] && !mine.has(c));
-    const cnt = keys.map(() => [0, 0, 0]);
-    const N = 300;
-    for (let i = 0; i < N; i++) {
-      const w = AI.sampleWorld(h, ME, Math.random);
-      keys.forEach((c, j) => { for (let k = 1; k < 4; k++) if (w[(ME + k) % 4].includes(c)) cnt[j][k - 1]++; });
+    const k = key(h);
+    if (S.keyProbs && S.keyProbs.k === k) return S.keyProbs.v;
+    if (force) {
+      const v = root.ThinkFns.heartsKeyProbs(h, ME, 300);
+      S.keyProbs = { k, v };
+      return v;
     }
-    const v = keys.map((c, j) => ({ card: c, p: cnt[j].map((x) => x / N) }));
-    S.keyProbs = { k: key(h), v };
-    return v;
+    if (S.keyJob !== k) {
+      S.keyJob = k;
+      const my = gen;
+      root.Think.run("heartsKeyProbs", h, ME, 300).then((v) => {
+        if (my !== gen || !S || !S.game.hand || key(S.game.hand) !== k) return;
+        S.keyProbs = { k, v };
+        if (!S.busy) render();
+      }, () => {});
+    }
+    // Meanwhile show the last numbers for cards that are still unseen.
+    return S.keyProbs ? S.keyProbs.v.filter((x) => !h.played[x.card] && !h.hands[ME].includes(x.card)) : null;
   }
 
   function renderStart() {
@@ -536,7 +544,7 @@
         S.collecting = true; render();
         setTimeout(() => {
           if (my !== gen || !S) return;
-          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.keyProbs = null;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
           if (S.game.hand.phase === "done") onHandDone();
           updateMoon();
           render();

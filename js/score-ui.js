@@ -29,7 +29,7 @@
       `<tr><td style="font-size:12px;color:var(--muted)">Moon</td>${d.names.map((_, i) => `<td><label class="chk"><input type="radio" name="moon" data-moon="${i}" ${dr.moon === i ? "checked" : ""}></label></td>`).join("")}</tr>` +
       (c.jack ? `<tr><td style="font-size:12px;color:var(--muted)">J♦</td>${d.names.map((_, i) => `<td><label class="chk"><input type="radio" name="jack" data-jack="${i}" ${dr.jack === i ? "checked" : ""}></label></td>`).join("")}</tr>` : "");
     return `<div class="sec">` +
-      (over ? `<div class="warm" style="font-weight:800;margin-bottom:6px">${T.esc(d.names[tot.indexOf(low)])} wins (lowest score)</div>` : "") +
+      (over ? `<div class="warm" style="font-weight:800;margin-bottom:6px">${tot.filter((t) => t === low).length > 1 ? "Tie for lowest: play another hand" : T.esc(d.names[tot.indexOf(low)]) + " wins (lowest score)"}</div>` : "") +
       `<table class="sk-table">${head}${total}${entry}</table>` +
       `<div class="row" style="display:flex;gap:8px;align-items:center;margin-top:10px"><span id="sk-check" class="muted" style="flex:1;font-size:13px">${checkHearts()}</span>` +
       `<button class="btn primary" data-act="h-add">Add hand</button></div></div>` +
