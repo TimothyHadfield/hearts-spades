@@ -47,3 +47,21 @@
   - Effects speed leaves the game Speed setting unchanged.
   - Two read-only reviewer rounds.
 - **Open:** passed-card slide animation; landscape phone still cramped.
+
+## 2026-10-20 — edge-case pass
+- **Asked:** make each game perfect in unexpected or weird scenarios (Tim's words in progress.md). Also the leftovers: pass slide, crosswise Spades tricks, landscape, end pad covering seats.
+- **Built:**
+  - kit `_table` 1.0.1 re-copied, `.gitattributes`;
+  - the hand is recorded on reload mid-sweep;
+  - `Spades.gameEnd()` is shared with the scorekeeper (lose-at);
+  - Moon/J♦ un-pick; blank-name winner line; Lab nil % hidden when nil is off;
+  - phone end pad below the table (beside it in landscape);
+  - landscape layout with a tab rail; SE bar fit;
+  - pass piles, the pass slide, and a flip that survives redraws;
+  - crosswise Spades tricks;
+  - blind-nil partner prompt and Help order (Pagat).
+- **Verified:**
+  - 58 scenarios listed, about 49 run (the online ones were not), 10 failed, all now pass (WebKit at 5 sizes, node engine checks).
+  - Each fix's check was first seen failing.
+  - Tests 20/22/7/6/9 pass.
+- **Open:** online edge scenarios not run.
