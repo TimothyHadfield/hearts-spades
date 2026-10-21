@@ -87,7 +87,7 @@
     const peak = Math.max(...A.dist);
     const maxK = Math.max(6, A.dist.reduce((m, p, i) => (p > 0.01 ? i : m), 0));
     return `<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap"><span>Expected <b>${A.expected.toFixed(2)}</b> tricks ${T.help("advisor")}</span>` +
-      `<span>Nil works <b>${Math.round(A.nilChance * 100)}%</b> ${T.help("nil")}</span><span>Best bid <b class="good">${A.best.bid === 0 ? "Nil" : A.best.bid}</b></span><span class="muted">Rule-of-thumb count ${A.rough}</span></div>` +
+      (A.nilChance !== null ? `<span>Nil works <b>${Math.round(A.nilChance * 100)}%</b> ${T.help("nil")}</span>` : "") + `<span>Best bid <b class="good">${A.best.bid === 0 ? "Nil" : A.best.bid}</b></span><span class="muted">Rule-of-thumb count ${A.rough}</span></div>` +
       `<div class="dist" style="height:90px">${A.dist.slice(0, maxK + 1).map((p, i) => `<div class="b${i === A.best.bid ? " mine" : ""}"><i style="height:${(p / peak) * 100}%"></i><span>${i}</span></div>`).join("")}</div>` +
       `<p class="muted" style="font-size:12px;margin:4px 0 0">${A.sims} play-outs, you first to bid and lead, everyone else playing Medium.</p>`;
   }

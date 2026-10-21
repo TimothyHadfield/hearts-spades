@@ -22,7 +22,7 @@
     bags: ["Bags", "Each trick over your bid is a bag: it scores 1 point, but every 10 bags costs 100."],
     jack: ["Jack of diamonds", "A common house rule: whoever takes the jack of diamonds subtracts 10 points. It doesn't count toward shooting the moon."],
     moonChoice: ["Shooter's choice", "The shooter normally gives everyone else 26. With this option they take −26 instead when adding 26 would end the game with them not winning."],
-    blindNil: ["Blind nil", "Bid nil before looking at your cards, for 200 points. Allowed only when your team is behind by 100 or more (set below). Your partner then passes you 2 cards and you pass 2 back."],
+    blindNil: ["Blind nil", "Bid nil before looking at your cards, for 200 points. Allowed only when your team is behind by 100 or more (set below). You then pass 2 cards to your partner, who passes 2 back."],
     nilCounts: ["Nil tricks", "Standard rule: tricks a nil bidder takes don't count toward the partner's bid; they are bags. Turn this on to let them count."],
     strength: ["How measured", "Each level played thousands of hands against three Medium players, swapping seats every hand. The number is the average points taken per hand: 6.5 is an even share and lower is better."],
   };
@@ -90,11 +90,13 @@
 
   /** Tricks won: face-down, each one staggered on the last so the count reads at a glance.
    *  pts (Hearts): the point cards from those tricks, laid face up beside the pile. */
-  function wonHTML(seat, n, pts) {
-    let out = `<div class="won${n ? "" : " empty"}" style="--n:${n}">`;
+  function wonHTML(seat, n, pts, cross) {
+    // cross (Spades): every other trick is laid crosswise on the last, the way players square up
+    // tricks at a real table so each one can still be counted.
+    let out = `<div class="won${n ? "" : " empty"}${cross ? " cross" : ""}" style="--n:${n}">`;
     for (let i = 0; i < n; i++) {
       const j = jit("won" + seat, i, { rot: 4, off: 1 });
-      out += `<i class="${BACK}" style="--i:${i};rotate:${j.r}deg;translate:0 ${j.y}px"></i>`;
+      out += `<i class="${BACK}" style="--i:${i};rotate:${j.r + (cross && i % 2 ? 90 : 0)}deg;translate:0 ${j.y}px"></i>`;
     }
     out += `</div>`;
     if (pts && pts.length) {
@@ -106,7 +108,15 @@
     return `<div class="won-area">${out}</div>`;
   }
 
-  /** o: pos, seat, name, score, sub, cpu, turn, count (cards held, others only), won, pts, deal */
+  /** Three cards a player has passed, waiting face down in front of them until everyone has passed. */
+  function passPileHTML(seat) {
+    let out = `<div class="passpile" aria-label="3 cards passed">`;
+    for (let i = 0; i < 3; i++) { const j = jit("pass" + seat, i, { rot: 9, off: 2 }); out += `<i class="${BACK}" style="--i:${i};rotate:${j.r}deg;translate:${j.x}px ${j.y}px"></i>`; }
+    return out + `</div>`;
+  }
+
+  /** o: pos, seat, name, score, sub, cpu, turn, count (cards held, others only), won, pts, deal,
+   *  cross (lay won tricks crosswise), passed (3 passed cards waiting in front of the seat) */
   function seatHTML(o) {
     const r = POS.indexOf(o.pos);
     const plate = `<div class="plate tbl-plate">${o.cpu ? `<span class="cpu" aria-label="computer">${CPU_ICON}</span>` : ""}` +
@@ -114,7 +124,46 @@
     const info = `<div class="seat-info">${plate}${o.sub ? `<span class="seat-sub">${o.sub}</span>` : ""}</div>`;
     return `<div class="seat ${o.pos}${o.turn ? " turn" : ""}" data-seat="${o.seat}">` +
       (o.pos !== "bottom" ? backsHTML(o.count || 0, r, o.deal) : "") +
-      `<div class="seat-front">${info}${wonHTML(o.seat, o.won || 0, o.pts)}</div></div>`;
+      `<div class="seat-front">${info}${wonHTML(o.seat, o.won || 0, o.pts, o.cross)}${o.passed ? passPileHTML(o.seat) : ""}</div></div>`;
+  }
+
+  /** The pass, like at a real table: each player's 3 cards slide face down across to the player
+   *  they go to. Ghost cards only (the hands are already updated). Returns ms until they land. */
+  function passFly(view, offset, me) {
+    const sp = root.GameFX ? root.GameFX.speed() : 1;
+    if (!sp || !offset || !view || !view.querySelector || !document.body.animate) return 0;
+    const tbl = view.querySelector(".table");
+    if (!tbl) return 0;
+    const cs = getComputedStyle(tbl), vars = ["--back", "--ink", "--back-frame"].map((v) => `${v}:${cs.getPropertyValue(v)}`).join(";");
+    const spot = (s) => {
+      const e = s === me ? view.querySelector(".hand-wrap .hand") : view.querySelector(`.seat[data-seat="${s}"] .ofan-wrap`) || view.querySelector(`.seat[data-seat="${s}"]`);
+      if (!e) return null;
+      const r = e.getBoundingClientRect();
+      return r.width || r.height ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+    };
+    const w = Math.max(22, Math.min(40, (parseFloat(cs.getPropertyValue("--ow")) || 24) * 1.15)), hgt = w * 1.4;
+    const ms = Math.round(560 * sp), gap = Math.round(70 * sp);
+    for (let s = 0; s < 4; s++) {
+      const a = spot(s), b = spot((s + offset) % 4);
+      if (!a || !b) continue;
+      for (let k = 0; k < 3; k++) {
+        const g = document.createElement("i");
+        g.className = BACK;
+        g.setAttribute("aria-hidden", "true");
+        g.style.cssText = `${vars};--card-w:${w}px;position:fixed;left:${a.x - w / 2}px;top:${a.y - hgt / 2}px;margin:0;z-index:40;pointer-events:none;box-shadow:0 3px 8px rgba(0,0,0,.45)`;
+        document.body.appendChild(g);
+        const off = (k - 1) * 4, r0 = jit("pf" + s, k, { rot: 10, off: 0 }).r;
+        let anim = null;
+        try {
+          anim = g.animate([{ transform: `translate(${off}px,0) rotate(${r0}deg)` }, { transform: `translate(${b.x - a.x + off}px,${b.y - a.y}px) rotate(${r0 + 20}deg)` }],
+            { duration: ms, delay: k * gap, easing: "cubic-bezier(.3,.7,.3,1)", fill: "both" });
+        } catch (e) { /* ignore */ }
+        const done = () => g.remove();
+        if (anim) anim.onfinish = done;
+        setTimeout(done, ms + k * gap + 400);
+      }
+    }
+    return ms + 2 * gap;
   }
 
   /** Tricks each seat has won and (Hearts) the point cards in them, rebuilt from the play log.
@@ -203,7 +252,7 @@
       const flip = opts.flip && (opts.flip === true || opts.flip.has(c));
       if (flip) cls.push("flip");
       const ev = opts.evs && opts.evs.get(c);
-      out += `<div class="${cls.join(" ")}" data-card="${c}" style="z-index:${i + 1}${opts.deal ? `;animation-delay:${Math.round(i * dealStep())}ms` : ""}${flip ? `;--fd:${Math.round(i * dealStep())}ms` : ""}"` +
+      out += `<div class="${cls.join(" ")}" data-card="${c}" style="z-index:${i + 1}${opts.deal ? `;animation-delay:${Math.round(i * dealStep())}ms` : ""}${flip ? `;--fd:${Math.round((opts.flipDelay || 0) + i * dealStep())}ms` : ""}"` +
         `${opts.legal && opts.legal.has(c) ? ` role="button" tabindex="0" aria-label="${C.longName(c)}"` : ""}>` +
         (ev ? `<span class="ev" style="color:${ev.color}">${ev.txt}</span>` : "") +
         Art.cardHTML(opts.hidden ? null : c) + (flip ? Art.cardHTML(null, "flip-back") : "") + `</div>`;
@@ -295,5 +344,5 @@
     return `hsl(${hue.toFixed(0)} 70% 62%)`;
   }
 
-  root.Table = { esc, POS, rel, HELP, help, openSheet, closeSheet, initSheet, toast, seatHTML, wonPiles, deckHTML, restDeckHTML, runDeck, trickHTML, handHTML, fitHand, trackerData, stripHTML, trackerDetailHTML, scaleColor, CPU_ICON };
+  root.Table = { esc, POS, rel, HELP, help, openSheet, closeSheet, initSheet, toast, seatHTML, passFly, wonPiles, deckHTML, restDeckHTML, runDeck, trickHTML, handHTML, fitHand, trackerData, stripHTML, trackerDetailHTML, scaleColor, CPU_ICON };
 })(typeof self !== "undefined" ? self : globalThis);

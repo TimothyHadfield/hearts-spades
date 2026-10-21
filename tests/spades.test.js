@@ -154,3 +154,14 @@ test("apply()/view(): pure, and other hands hidden", () => {
   ok(v.hand.hands[0].every((c) => c === null));
   eq(v.hand.hands[2], s2.hand.hands[2]);
 });
+
+test("gameEnd(): target, tie at target plays on, lose-at, both under (edge pass)", () => {
+  const o = { target: 500, loseAt: 200 };
+  eq(S.gameEnd([510, 300], o), 0);
+  eq(S.gameEnd([300, 520], o), 1);
+  eq(S.gameEnd([510, 510], o), -1);
+  eq(S.gameEnd([-210, 40], o), 1);
+  eq(S.gameEnd([40, -200], o), 0);
+  eq(S.gameEnd([-150, 40], o), -1);
+  eq(S.gameEnd([-250, 40], { target: 500, loseAt: 0 }), -1);
+});

@@ -30,6 +30,8 @@
     S.handStudy = saved.handStudy || [];
     S.fresh = new Set(saved.fresh || []);
     S.recorded = saved.recorded ?? -1;
+    // Closed mid-sweep of the last trick: the hand ended but was never counted.
+    if (S.game.hand.phase === "done") onHandDone();
   }
 
   function blank(game, level) {
@@ -206,13 +208,16 @@
       const pos = T.POS[T.rel(s, ME)];
       seats += T.seatHTML({
         pos, seat: s, name: NAMES[T.rel(s, ME)], score: g.scores[s], sub: seatSub(h, s), cpu: !!R && isCpu(s),
-        turn: h.phase === "play" && h.turn === s && !S.busy, count: s !== ME ? h.hands[s].length : null,
-        won: piles.n[s], pts: piles.pts[s], deal: S.dealAnim,
+        turn: h.phase === "play" && h.turn === s && !S.busy, count: s !== ME ? h.hands[s].length - (passing && h.passes[s] ? 3 : 0) : null,
+        won: piles.n[s], pts: piles.pts[s], deal: S.dealAnim, passed: passing && !!h.passes[s],
       });
     }
 
+    // On a phone the score pad sits below the table, so every seat, pile and score stays in view.
+    const padOut = h.phase === "done" && !S.showTrick && !sideVisible();
+    const passDone = !!S.flipNew;
     let center = "";
-    if (h.phase === "done" && !S.showTrick) center = summaryHTML();
+    if (h.phase === "done" && !S.showTrick) center = padOut ? "" : summaryHTML();
     else if (passing && !h.passes[ME]) center = `<div class="felt-msg">Pass 3 cards <b>${passName}</b></div>`;
     else if (h.trickNo === 0 && !trickShown.length && h.received[ME] && S.fresh.size) center = `<div class="felt-msg">Blue outline = cards you got</div>`;
 
@@ -227,20 +232,29 @@
       `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">${metaTxt} · ${S.level}</span></div>` +
       `<button class="btn sm hint-btn${S.hint ? " on" : ""}${S.thinking ? " thinking" : ""}" data-act="hint" ${(myTurn || (passing && !h.passes[ME])) && !S.thinking ? "" : "disabled"}>Hint</button>` +
       `<button class="icon-btn" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>` +
-      `<div class="table tbl-surface tbl-felt-green"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim ? T.deckHTML() : ""}${center}${moon}</div>` +
-      (cfg().tracker ? T.stripHTML(td, NAMES, ME) : "") +
-      `<div class="prompt" id="h-prompt">${promptHTML()}</div>` +
-      `<div class="hand-wrap">${handHTMLFor(h, myTurn, passing)}</div>` +
+      `<div class="table tbl-surface tbl-felt-green${padOut ? " end" : ""}"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim ? T.deckHTML() : ""}${center}${moon}</div>` +
+      (padOut ? `<div class="pad-slot">${summaryHTML()}</div>` :
+        (cfg().tracker ? T.stripHTML(td, NAMES, ME) : "") +
+        `<div class="prompt" id="h-prompt">${promptHTML()}</div>` +
+        `<div class="hand-wrap">${handHTMLFor(h, myTurn, passing)}</div>`) +
       `</div></div><aside class="game-side">${sideHTML(td)}</aside></div>`;
     T.fitHand(el.querySelector(".hand-wrap"));
     if (S.dealAnim) T.runDeck(el);
+    if (passDone && h.phase === "play") T.passFly(el, h.passOffset, ME);
     if (root.GameFX) root.GameFX.observe("hearts", { g: S.game, me: ME, dealAnim: S.dealAnim, show: S.showTrick, collecting: S.collecting, busy: S.busy }, el);
     S.dealAnim = false; S.flipNew = false; S.freshTrick.clear(); // a played card lands once, not again on every redraw
   }
 
   function handHTMLFor(h, myTurn, passing) {
-    const cards = h.hands[ME];
-    const opts = { sel: S.sel, fresh: S.fresh, deal: S.dealAnim, flip: S.flipNew ? S.fresh : null };
+    // Cards you've passed (online, while the others choose) are already out of your hand, face down on the table.
+    const gone = passing && Array.isArray(h.passes[ME]) ? new Set(h.passes[ME]) : null;
+    const cards = gone ? h.hands[ME].filter((c) => !gone.has(c)) : h.hands[ME];
+    // The cards you get turn face up once the passed cards have slid across to you. A redraw while
+    // that runs (a computer leading quickly) keeps the flip going from where it was, not restarting it.
+    const now = performance.now();
+    if (S.flipNew) { const sp = root.GameFX ? root.GameFX.speed() : 1; S.flipAt = now + 700 * sp; S.flipEnd = S.flipAt + (500 + 13 * 35) * sp + 100; }
+    const flipping = S.flipEnd && now < S.flipEnd;
+    const opts = { sel: S.sel, fresh: S.fresh, deal: S.dealAnim, flip: flipping ? S.fresh : null, flipDelay: flipping ? Math.round(S.flipAt - now) : 0 };
     if (passing && !h.passes[ME]) {
       opts.legal = new Set(cards);
       if (S.hint && S.hint.pass) opts.best = S.hint.pass;
@@ -570,6 +584,10 @@
       if ((e.key === "Enter" || e.key === " ") && e.target.closest(".hc")) { e.preventDefault(); if (S) tapCard(+e.target.closest(".hc").dataset.card); }
     });
     window.addEventListener("resize", () => T.fitHand(el.querySelector(".hand-wrap")));
+    // Turning a tablet or resizing past the laptop width moves the score pad between table and side.
+    const mq = root.matchMedia && root.matchMedia("(min-width: 900px)");
+    const onMq = () => { if (S && S.game.hand && S.game.hand.phase === "done" && !S.busy) render(); };
+    if (mq) { if (mq.addEventListener) mq.addEventListener("change", onMq); else if (mq.addListener) mq.addListener(onMq); }
     restore();
     if (S) { updateMoon(); }
     if (root.OnlineUI && root.OnlineUI.savedRoom("hearts")) root.OnlineUI.resume("hearts", onSnap);

@@ -234,14 +234,19 @@
     game.history.push({ bids: h.bids.slice(), blind: h.blind.slice(), tricks: h.tricks.slice(), pts: res.map((r) => r.points), scores: game.scores.slice() });
     game.handNo++;
     game.dealer = (game.dealer + 1) % 4;
-    const [a, b] = game.scores, T = game.opts.target;
-    const lose = game.opts.loseAt;
-    if (a >= T || b >= T) {
-      if (a !== b) { game.over = true; game.winner = a > b ? 0 : 1; }
-    } else if (lose && (a <= -lose || b <= -lose)) {
-      game.over = true; game.winner = a <= -lose ? 1 : 0;
-      if (a <= -lose && b <= -lose) game.winner = a > b ? 0 : 1;
+    const w = gameEnd(game.scores, game.opts);
+    if (w >= 0) { game.over = true; game.winner = w; }
+  }
+
+  /** Winning team (0/1) once a game is decided, else -1. Shared with the scorekeeper. */
+  function gameEnd(scores, opts) {
+    const [a, b] = scores, T = opts.target, lose = opts.loseAt;
+    if (a >= T || b >= T) return a !== b ? (a > b ? 0 : 1) : -1;
+    if (lose && (a <= -lose || b <= -lose)) {
+      if (a <= -lose && b <= -lose) return a > b ? 0 : 1;
+      return a <= -lose ? 1 : 0;
     }
+    return -1;
   }
 
   // ------------------------------------------------- online-ready interface
@@ -291,7 +296,7 @@
 
   const api = {
     DEFAULTS, team, newGame, deal, submitBid, submitExchange, blindNilAllowed, startPlay,
-    legal, trickWinner, playRaw, play, scoreTeam, finishHand, apply, view, toAct,
+    legal, trickWinner, playRaw, play, scoreTeam, finishHand, gameEnd, apply, view, toAct,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Spades = api;

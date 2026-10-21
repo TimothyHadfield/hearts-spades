@@ -30,6 +30,8 @@
     if (!sv || !sv.game || !sv.game.hand) return;
     S = blank(sv.game, sv.level);
     S.handStudy = sv.handStudy || []; S.looked = sv.looked !== false; S.recorded = sv.recorded ?? -1; S.bidLoss = sv.bidLoss || null;
+    // Closed mid-sweep of the last trick: the hand ended but was never counted.
+    if (S.game.hand.phase === "done") onHandDone();
   }
 
   function optsFromCfg() {
@@ -199,13 +201,17 @@
       const sub = h.phase === "bid" && h.bids[s] === null ? (h.bidTurn === s ? "bidding…" : "") : `${bidTxt(h, s)} · won ${h.tricks[s]}`;
       seats += T.seatHTML({ pos, seat: s, name: NAMES[T.rel(s, ME)], score: "", sub, cpu: !!R && isCpu(s),
         turn: a && a.seats ? false : a && a.seat === s && !S.busy, count: s !== ME ? h.hands[s].length : null,
-        won: piles.n[s], deal: S.dealAnim && !S.flipAll });
+        won: piles.n[s], deal: S.dealAnim && !S.flipAll, cross: true });
     }
 
+    // On a phone the score pad sits below the table, so every seat, pile and bid stays in view.
+    const padOut = h.phase === "done" && !S.showTrick && !(root.matchMedia && root.matchMedia("(min-width: 900px)").matches);
     let center = "";
-    if (h.phase === "done" && !S.showTrick) center = summaryHTML();
+    if (h.phase === "done" && !S.showTrick) center = padOut ? "" : summaryHTML();
     else if (myAct === "bid") center = S.looked ? bidPanelHTML() : blindPanelHTML();
-    else if (myAct === "exchange") center = `<div class="felt-msg">Blind nil: pick 2 cards to give Partner. Partner gives 2 back.</div>`;
+    else if (myAct === "exchange") center = h.exchange && h.exchange.nilSeat === ME
+      ? `<div class="felt-msg">Blind nil: pick 2 cards to give Partner. Partner gives 2 back.</div>`
+      : `<div class="felt-msg">Partner bid blind nil and gave you 2 cards. Pick 2 to give back.</div>`;
     else if (h.phase === "bid") center = `<div class="felt-msg">Bidding…</div>`;
 
     const makeChip = S.make && S.make.bid !== null && h.phase === "play" ? makeChipHTML() : "";
@@ -217,10 +223,11 @@
 
     const td = T.trackerData(h, ME);
     el.innerHTML = `<div class="game"><div class="game-main">${bar}` +
-      `<div class="table tbl-surface tbl-felt-green"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim && !S.flipAll ? T.deckHTML() : ""}${center}${makeChip}</div>` +
-      (cfg().tracker && h.phase === "play" ? T.stripHTML(td, NAMES, ME) : "") +
-      `<div class="prompt" id="s-prompt">${promptHTML(myAct)}</div>` +
-      `<div class="hand-wrap">${handFor(h, myAct)}</div>` +
+      `<div class="table tbl-surface tbl-felt-green${padOut ? " end" : ""}"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim && !S.flipAll ? T.deckHTML() : ""}${center}${makeChip}</div>` +
+      (padOut ? `<div class="pad-slot">${summaryHTML()}</div>` :
+        (cfg().tracker && h.phase === "play" ? T.stripHTML(td, NAMES, ME) : "") +
+        `<div class="prompt" id="s-prompt">${promptHTML(myAct)}</div>` +
+        `<div class="hand-wrap">${handFor(h, myAct)}</div>`) +
       `</div></div><aside class="game-side">${sideHTML(td)}</aside></div>`;
     T.fitHand(el.querySelector(".hand-wrap"));
     if (S.dealAnim && !S.flipAll) T.runDeck(el);
@@ -562,6 +569,10 @@
       if ((e.key === "Enter" || e.key === " ") && e.target.closest(".hc")) { e.preventDefault(); if (S) tapCard(+e.target.closest(".hc").dataset.card); }
     });
     window.addEventListener("resize", () => T.fitHand(el.querySelector(".hand-wrap")));
+    // Turning a tablet or resizing past the laptop width moves the score pad between table and side.
+    const mq = root.matchMedia && root.matchMedia("(min-width: 900px)");
+    const onMq = () => { if (S && S.game.hand && S.game.hand.phase === "done" && !S.busy) render(); };
+    if (mq) { if (mq.addEventListener) mq.addEventListener("change", onMq); else if (mq.addListener) mq.addListener(onMq); }
     restore();
     if (S && S.game.hand.phase === "play") updateMake();
     if (root.OnlineUI && root.OnlineUI.savedRoom("spades")) root.OnlineUI.resume("spades", onSnap);

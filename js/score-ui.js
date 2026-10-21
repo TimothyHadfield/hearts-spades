@@ -29,7 +29,7 @@
       `<tr><td style="font-size:12px;color:var(--muted)">Moon</td>${d.names.map((_, i) => `<td><label class="chk"><input type="radio" name="moon" data-moon="${i}" ${dr.moon === i ? "checked" : ""}></label></td>`).join("")}</tr>` +
       (c.jack ? `<tr><td style="font-size:12px;color:var(--muted)">J♦</td>${d.names.map((_, i) => `<td><label class="chk"><input type="radio" name="jack" data-jack="${i}" ${dr.jack === i ? "checked" : ""}></label></td>`).join("")}</tr>` : "");
     return `<div class="sec">` +
-      (over ? `<div class="warm" style="font-weight:800;margin-bottom:6px">${tot.filter((t) => t === low).length > 1 ? "Tie for lowest: play another hand" : T.esc(d.names[tot.indexOf(low)]) + " wins (lowest score)"}</div>` : "") +
+      (over ? `<div class="warm" style="font-weight:800;margin-bottom:6px">${tot.filter((t) => t === low).length > 1 ? "Tie for lowest: play another hand" : T.esc(d.names[tot.indexOf(low)].trim() || "Player " + (tot.indexOf(low) + 1)) + " wins (lowest score)"}</div>` : "") +
       `<table class="sk-table">${head}${total}${entry}</table>` +
       `<div class="row" style="display:flex;gap:8px;align-items:center;margin-top:10px"><span id="sk-check" class="muted" style="flex:1;font-size:13px">${checkHearts()}</span>` +
       `<button class="btn primary" data-act="h-add">Add hand</button></div></div>` +
@@ -68,7 +68,8 @@
     if (!draft.spades) draft.spades = { bid: ["", "", "", ""], tricks: ["", "", "", ""] };
     const dr = draft.spades;
     const { sc, bags } = spadesTotals();
-    const over = d.hands.length && (sc[0] >= c.target || sc[1] >= c.target) && sc[0] !== sc[1];
+    const win = d.hands.length ? Sp.gameEnd(sc, c) : -1;   // same rule as the computer game (target or lose-at)
+    const over = win >= 0;
     const bidOpts = (i) => {
       let o = `<option value="">Bid</option>`;
       if (c.nil) o += `<option value="0" ${dr.bid[i] === "0" ? "selected" : ""}>Nil</option>`;
@@ -85,7 +86,7 @@
         `<input class="num" inputmode="numeric" data-tricks="${i}" value="${T.esc(dr.tricks[i])}" placeholder="Won" aria-label="Tricks won"></div>`).join("") + `</div>`;
     const rows = d.hands.slice().reverse().map((hnd, k) => `<tr><td style="color:var(--muted);font-size:12px">${d.hands.length - k}</td>` +
       [0, 1].map((t) => `<td>${hnd.res[t].points >= 0 ? "+" : ""}${hnd.res[t].points}<div class="muted" style="font-size:11px">${[t, t + 2].map((i) => (hnd.bid[i] === 0 ? (hnd.blind[i] ? "BN" : "N") : hnd.bid[i]) + "/" + hnd.tricks[i]).join(" ")}</div></td>`).join("") + `</tr>`).join("");
-    return `<div class="sec">` + (over ? `<div class="warm" style="font-weight:800;margin-bottom:6px">${T.esc(d.teams[sc[0] > sc[1] ? 0 : 1])} win</div>` : "") +
+    return `<div class="sec">` + (over ? `<div class="warm" style="font-weight:800;margin-bottom:6px">${T.esc(d.teams[win].trim() || "Team " + (win + 1))} win</div>` : "") +
       `<div style="display:flex;gap:14px">${team(0)}${team(1)}</div>` +
       `<div style="display:flex;gap:8px;align-items:center;margin-top:10px"><span id="sk-check" class="muted" style="flex:1;font-size:13px">${checkSpades()}</span><button class="btn primary" data-act="s-add">Add hand</button></div></div>` +
       `<div class="sec"><table class="sk-table"><tr><th>#</th><th>${T.esc(d.teams[0])}</th><th>${T.esc(d.teams[1])}</th></tr>${rows || `<tr><td colspan="3" class="muted" style="font-size:13px">No hands yet</td></tr>`}</table></div>` +
@@ -130,6 +131,15 @@
   function mount(view) {
     el = view;
     el.addEventListener("click", (e) => {
+      // Moon / J♦ radios: tapping the picked one again un-picks it (a radio alone can't be cleared).
+      const r = e.target.closest("input[data-moon], input[data-jack]");
+      if (r && draft.hearts) {
+        const k = r.dataset.moon !== undefined ? "moon" : "jack", i = +r.dataset[k];
+        if (draft.hearts[k] === i) { r.checked = false; draft.hearts[k] = -1; } else draft.hearts[k] = i;
+        const chk = el.querySelector("#sk-check");
+        if (chk) chk.innerHTML = checkHearts();
+        return;
+      }
       const a = e.target.closest("[data-act]");
       if (!a) return;
       const act = a.dataset.act, d = sk();
@@ -156,8 +166,6 @@
     });
     el.addEventListener("change", (e) => {
       const t = e.target;
-      if (t.dataset.moon !== undefined) { draft.hearts.moon = draft.hearts.moon === +t.dataset.moon ? -1 : +t.dataset.moon; }
-      if (t.dataset.jack !== undefined) draft.hearts.jack = +t.dataset.jack;
       if (t.dataset.bid !== undefined) draft.spades.bid[+t.dataset.bid] = t.value;
       const chk = el.querySelector("#sk-check");
       if (chk) chk.innerHTML = sk().mode === "hearts" ? checkHearts() : checkSpades();
