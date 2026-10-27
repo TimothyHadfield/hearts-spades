@@ -1,0 +1,10 @@
+{
+  "repo": "hearts-spades",
+  "ready": "!!(window.App && window.HeartsUI && document.querySelector('#view-hearts .start, #view-hearts .game'))",
+  "play": [
+    "(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); if (window.COACH) COACH.closeOffer(); Store.data.hearts.passing = 'none'; Store.data.hearts.speed = 'fast'; Store.save(); App.go('hearts'); await w(300); HeartsUI.newGame(); for (let i = 0; i < 200; i++) { const s = HeartsUI.state; if (s && s.game.hand.phase === 'play' && s.game.hand.turn === 0 && !s.busy) break; await w(100); } const s = HeartsUI.state; const c = Hearts.legal(s.game.hand, 0)[0]; window.__before = s.game.hand.trickNo * 10 + s.game.hand.trick.length; const el = () => document.querySelector('.hc[data-card=\"' + c + '\"]'); el().click(); await w(50); el().click(); })()"
+  ],
+  "played": "(() => { const s = HeartsUI.state; if (!s) return false; const h = s.game.hand; return h.phase === 'done' || (h.turn === 0 && !s.busy && h.trickNo * 10 + h.trick.length !== window.__before); })()",
+  "safe": "App.go('settings')",
+  "debug": "JSON.stringify((() => { const s = HeartsUI.state; return s ? { turn: s.game.hand.turn, trick: s.game.hand.trick.length, no: s.game.hand.trickNo, busy: s.busy, before: window.__before } : null; })())"
+}

@@ -21,7 +21,7 @@
 
   function persist() {
     if (S && S.online) return;   // online games live in the room, not in this browser
-    Store.data.games.hearts = S ? { game: S.game, level: S.level, handStudy: S.handStudy, fresh: [...S.fresh], recorded: S.recorded, tricks: S.tricks, handStart: S.handStart, undo: S.undo, helped: S.helped, daily: S.daily, done: S.done } : null;
+    Store.data.games.hearts = S ? { game: S.game, level: S.level, handStudy: S.handStudy, fresh: [...S.fresh], recorded: S.recorded, tricks: S.tricks, handStart: S.handStart, undo: S.undo, helped: S.helped, daily: S.daily, done: S.done, tutorial: S.tutorial } : null;
     Store.save();
   }
 
@@ -33,7 +33,7 @@
     S.fresh = new Set(saved.fresh || []);
     S.recorded = saved.recorded ?? -1;
     S.tricks = saved.tricks || []; S.handStart = saved.handStart || null; S.undo = saved.undo || null;
-    S.helped = !!saved.helped; S.daily = saved.daily || null; S.done = !!saved.done;
+    S.helped = !!saved.helped; S.daily = saved.daily || null; S.done = !!saved.done; S.tutorial = !!saved.tutorial;
     // Closed mid-sweep of the last trick: the hand ended but was never counted.
     if (S.game.hand.phase === "done") onHandDone();
   }
@@ -43,12 +43,14 @@
     return {
       game, level, sel: new Set(), fresh: new Set(), freshTrick: new Set(), showTrick: null, collecting: false,
       hint: null, lastLoss: null, handStudy: [], moon: null, dealAnim: false, busy: false, recorded: -1, keyProbs: null, thinking: false, cpuPending: null,
-      tricks: [], handStart: null, undo: null, helped: false, daily: null, done: false,
+      tricks: [], handStart: null, undo: null, helped: false, daily: null, done: false, tutorial: false,
     };
   }
 
   // -------------------------------------------------------------- game flow
   function newGame() {
+    if (root.COACH) root.COACH.closeOffer();
+    quit();
     gen++;
     const c = cfg();
     let g = H.apply(null, { type: "new", opts: { target: c.target, moon: c.moon, jack: c.jack, queenBreaks: c.queenBreaks, bleed: c.bleed, passing: c.passing, players: c.players, points: c.points } });
@@ -57,7 +59,8 @@
   }
 
   function dealNext(again) {
-    const deck = again ? again.deck : S.daily ? C.shuffle(C.deck(), C.makeRng(S.daily.seed + S.game.handNo * 7919)) : C.shuffle(C.deck());
+    const seed = S.daily ? S.daily.seed : S.tutorial && root.HSCoach ? root.HSCoach.SEED : 0;
+    const deck = again ? again.deck : seed ? C.shuffle(C.deck(), C.makeRng((seed + S.game.handNo * 7919) >>> 0)) : C.shuffle(C.deck());
     if (again) { S.game = again.game; S.helped = true; }
     S.handStart = { game: S.game, deck };
     const g = H.apply(S.game, { type: "deal", deck });
@@ -124,6 +127,50 @@
     } else step();
   }
 
+  /** A Daily game: today's deals (the same for everyone), standard rules, Medium computers, game to 50. No Undo. */
+  function startDaily() {
+    const P = root.Profile, D = root.HSProfile && root.HSProfile.DAILY.hearts;
+    if (!P || !D) return;
+    if (root.COACH) root.COACH.closeOffer();
+    quit();
+    gen++;
+    const day = P.daily.date();
+    S = blank(H.apply(null, { type: "new", opts: D.opts }), D.level);
+    S.daily = { day, seed: P.daily.seed(day, "hearts") >>> 0 || 1 };
+    if (root.App && root.App.tab !== "hearts") root.App.go("hearts");
+    dealNext();
+  }
+
+  /** The guided first game: standard rules, three Easy computers, the same cards every time. */
+  function startTutorial() {
+    quit();
+    gen++;
+    S = blank(H.apply(null, { type: "new", opts: { target: 100, moon: "add", jack: false, queenBreaks: false, bleed: false, passing: "cycle4", players: 4, points: "standard" } }), "easy");
+    S.tutorial = true;
+    if (root.App && root.App.tab !== "hearts") root.App.go("hearts");
+    dealNext();
+  }
+
+  /** Leaving a game before the end counts as a loss, so a bad game can't be dropped. */
+  function quit() {
+    if (!S || S.online || S.done || S.tutorial || !S.game || !S.game.hand) return;
+    recordGame();
+  }
+
+  /** The game is over (or abandoned): into the player profile, once. */
+  function recordGame() {
+    if (!S || S.online || S.done || S.tutorial) return;
+    S.done = true;
+    persist();
+    const HP = root.HSProfile;
+    if (!HP || !HP.use("hearts", startDaily)) return;
+    const g = S.game;
+    root.Profile.recordResult(HP.result({
+      game: "hearts", over: !!g.over, winners: g.winners || [], me: ME, scores: g.scores, level: S.level, helped: S.helped, daily: !!S.daily,
+      players: g.scores.length, points: g.opts.points, moons: g.history.filter((x) => x.moonBy === ME).length,
+    }));
+  }
+
   /** Take back your last card (and everything the computers played after it). The game becomes unrated. */
   function undo() {
     if (!S || !S.undo || S.online || S.daily) return;
@@ -148,6 +195,7 @@
     if (Store.data.study.hearts.length > 400) Store.data.study.hearts.shift();
     if (g.over) { rec.played++; if (g.winners.includes(ME)) rec.won++; }
     persist();
+    if (g.over) recordGame();
   }
 
   /** Points lost for your card, measured from the position before you played it. */
@@ -257,7 +305,7 @@
     const td = T.trackerData(h, ME);
     el.innerHTML =
       `<div class="game"><div class="game-main">` +
-      `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">${metaTxt} · ${S.level}</span></div>` +
+      `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">${S.daily ? "Daily · " : S.tutorial ? "Guided game · " : ""}${metaTxt} · ${S.level}</span></div>` +
       `<button class="btn sm hint-btn${S.hint ? " on" : ""}${S.thinking ? " thinking" : ""}" data-act="hint" ${(myTurn || (passing && !h.passes[ME])) && !S.thinking ? "" : "disabled"}>Hint</button>` +
       `<button class="icon-btn" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>` +
       `<div class="table tbl-surface tbl-felt-green${padOut ? " end" : ""}${N !== 4 ? " n" + N : ""}"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null, N)}${S.dealAnim ? T.deckHTML() : ""}${center}${moon}</div>` +
@@ -435,8 +483,22 @@
       `<div class="seg levels" data-act="level">${lv.map((l) => `<button data-level="${l}" aria-pressed="${c.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join("")}</div>` +
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
       `<button class="btn primary wide" data-act="deal">Deal</button>` +
-      `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button>` +
+      `<div class="start-row"><button class="btn" data-act="online">Play online</button>${root.Profile ? `<button class="btn pf-open" data-act="stats">${root.Profile.avatarSVG(root.Profile.avatar, 22)}My stats</button>` : ""}</div>` +
       `</div></div></div></div></div>`;
+    offerTutorial();
+  }
+
+  function offerTutorial() {
+    const CO = root.COACH, HC = root.HSCoach;
+    if (!CO || !HC || S || R || CO.offered(HC.ID) || !root.App || root.App.tab !== "hearts") return;
+    setTimeout(() => {
+      if (S || R || !root.App || root.App.tab !== "hearts") return;
+      CO.offer({ id: HC.ID, title: "New to Hearts?", text: "Play one guided hand against Easy computers.", yes: "Teach me", no: "No thanks", onYes: () => root.App.startTutorial() });
+    }, 400);
+  }
+
+  function openStats() {
+    if (root.HSProfile && root.HSProfile.use("hearts", startDaily)) { root.Profile.openPanel(); if (root.App) root.App.modalOpened("profile"); }
   }
 
   // ----------------------------------------------------------------- input
@@ -448,6 +510,7 @@
       const act = a.dataset.act;
       if (act === "deal") return newGame();
       if (act === "online") return openOnline();
+      if (act === "stats") return openStats();
       if (act === "level") {
         const b = e.target.closest("[data-level]");
         if (b) { cfg().level = b.dataset.level; Store.save(); render(); }
@@ -463,7 +526,7 @@
       if (act === "menu") return menu();
       if (act === "pass") return submitPass();
       if (act === "next") return S.online ? send({ type: "next" }) : dealNext();
-      if (act === "new") { if (S.online) return root.OnlineUI.leave("hearts"); S = null; persist(); return render(); }
+      if (act === "new") { if (S.online) return root.OnlineUI.leave("hearts"); S = null; persist(); return render(); }   // only shown once the game is over
       if (act === "reveal") return reveal();
       if (act === "undo") return undo();
       if (act === "replay") { if (S.handStart && !S.online && !S.daily) { gen++; dealNext(S.handStart); } return; }
@@ -516,13 +579,15 @@
       return;
     }
     T.openSheet(`<h3>Hearts</h3><p>Lowest score wins once someone reaches ${S.game.opts.target}.</p>` +
-      `<div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="new">New game</button><button class="btn" data-m="rules">Rules</button><button class="btn" data-m="strength">How strong?</button></div>`,
+      (S.daily ? `<p class="muted">Today's Daily game: the same deals for everyone, no Undo.</p>` : S.tutorial ? "" : !S.done ? `<p class="muted">Leaving before the end counts as a loss in My stats.</p>` : "") +
+      `<div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="new">New game</button><button class="btn" data-m="rules">Rules</button><button class="btn" data-m="strength">How strong?</button>${root.Profile ? `<button class="btn" data-m="stats">My stats</button>` : ""}</div>`,
       (sh) => sh.addEventListener("click", (e) => {
         const b = e.target.closest("[data-m]");
         if (!b) return;
-        if (b.dataset.m === "new") { T.closeSheet(); gen++; S = null; persist(); render(); }
+        if (b.dataset.m === "new") { T.closeSheet(); quit(); gen++; S = null; persist(); render(); }
         if (b.dataset.m === "rules") { T.closeSheet(); setTimeout(() => root.Lab.rulesSheet("hearts"), 30); }
         if (b.dataset.m === "strength") { T.closeSheet(); setTimeout(() => root.Lab.strengthSheet("hearts"), 30); }
+        if (b.dataset.m === "stats") { T.closeSheet(); setTimeout(openStats, 30); }
       }));
   }
 
@@ -559,6 +624,7 @@
 
   // ----------------------------------------------------------------- online
   function openOnline() {
+    if (root.COACH) root.COACH.closeOffer();
     const c = cfg();
     root.OnlineUI.openSheet("hearts", { level: c.level, target: c.target, moon: c.moon, jack: c.jack, queenBreaks: c.queenBreaks, bleed: c.bleed, passing: c.passing }, onSnap);
   }
@@ -658,5 +724,5 @@
   }
   function show() { if (S) step(); else render(); }
 
-  root.HeartsUI = { mount, show, render, get state() { return S; }, get room() { return R; }, newGame };
+  root.HeartsUI = { mount, show, render, get state() { return S; }, get room() { return R; }, newGame, startDaily, startTutorial, openStats };
 })(typeof self !== "undefined" ? self : globalThis);

@@ -550,3 +550,10 @@ html.fx-fast .trick.collect .slot .pc { transition-duration: .21s; }
 .trick-review .tr-c.win { box-shadow: 0 0 0 2px var(--accent-warm); }
 .trick-review .tr-w { font-size: 12px; color: var(--muted); text-align: right; flex: none; max-width: 30%; }
 .trick-review .tr-w b { color: var(--bad); }
+
+/* Start panel: Play online + My stats side by side */
+.start .start-row { display: flex; gap: 8px; margin-top: 8px; }
+.start .start-row .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.start .start-row .btn svg { width: 22px; height: 22px; flex: none; border-radius: 50%; }
+.set-page .learn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.set-page .learn-row .btn { flex: 1 1 auto; }

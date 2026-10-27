@@ -65,6 +65,11 @@
     ],
   };
   function rulesSheet(game) {
+    if (root.COACH && root.HSCoach) {
+      root.COACH.rules(Object.assign({}, root.HSCoach.rules(game), { onClose: () => { if (root.App) root.App.modalClosed(); } }));
+      if (root.App) root.App.modalOpened("rules");
+      return;
+    }
     T.openSheet(`<h3>${game === "hearts" ? "Hearts" : "Spades"} rules</h3><ul style="margin:0;padding-left:18px;font-size:14px;color:#c9cede">${RULES[game].map((r) => `<li style="margin-bottom:6px">${r}</li>`).join("")}</ul>`);
   }
 

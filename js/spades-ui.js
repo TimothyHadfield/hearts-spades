@@ -50,6 +50,7 @@
   }
 
   function newGame() {
+    quit();
     gen++;
     S = blank(S_.apply(null, { type: "new", opts: optsFromCfg() }), cfg().level);
     dealNext();
@@ -123,6 +124,45 @@
     } else step();
   }
 
+  /** A Daily game: today's deals (the same for everyone), standard rules, Medium computers, game to 200. No Undo. */
+  function startDaily() {
+    const P = root.Profile, D = root.HSProfile && root.HSProfile.DAILY.spades;
+    if (!P || !D) return;
+    quit();
+    gen++;
+    const day = P.daily.date();
+    S = blank(S_.apply(null, { type: "new", opts: D.opts }), D.level);
+    S.daily = { day, seed: P.daily.seed(day, "spades") >>> 0 || 1 };
+    if (root.App && root.App.tab !== "spades") root.App.go("spades");
+    dealNext();
+  }
+
+  /** Leaving a game before the end counts as a loss, so a bad game can't be dropped. */
+  function quit() {
+    if (!S || S.online || S.done || !S.game || !S.game.hand) return;
+    recordGame();
+  }
+
+  /** The game is over (or abandoned): into the player profile, once. */
+  function recordGame() {
+    if (!S || S.online || S.done) return;
+    S.done = true;
+    persist();
+    const HP = root.HSProfile;
+    if (!HP || !HP.use("spades", startDaily)) return;
+    const g = S.game;
+    const nils = g.history.filter((x) => x.bids[ME] === 0 && x.tricks[ME] === 0).length;
+    const blindNils = g.history.filter((x) => x.bids[ME] === 0 && x.blind[ME] && x.tricks[ME] === 0).length;
+    root.Profile.recordResult(HP.result({
+      game: "spades", over: !!g.over, winner: g.winner, us: US, scores: g.scores, level: S.level, helped: S.helped, daily: !!S.daily,
+      nils, blindNils, bidding: g.opts.bidding,
+    }));
+  }
+
+  function openStats() {
+    if (root.HSProfile && root.HSProfile.use("spades", startDaily)) { root.Profile.openPanel(); if (root.App) root.App.modalOpened("profile"); }
+  }
+
   /** Undo goes back to just before your last card or bid (offline, never in the Daily). */
   function keepUndo(before) {
     if (!S.online && !S.daily) S.undo = { game: before, study: S.handStudy.length, tricks: S.tricks.length, bidLoss: S.bidLoss };
@@ -151,6 +191,7 @@
     if (Store.data.study.spades.length > 400) Store.data.study.spades.shift();
     if (g.over) { rec.played++; if (g.winner === US) rec.won++; }
     persist();
+    if (g.over) recordGame();
   }
 
   const key = (h) => h.trickNo * 10 + h.trick.length + ":" + h.hands[ME].length;
@@ -417,7 +458,7 @@
       `<div class="seg levels" data-act="level">${lv.map((l) => `<button data-level="${l}" aria-pressed="${c.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join("")}</div>` +
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
       `<button class="btn primary wide" data-act="deal">Deal</button>` +
-      `<button class="btn wide" data-act="online" style="margin-top:8px">Play online</button></div></div></div></div></div>`;
+      `<div class="start-row"><button class="btn" data-act="online">Play online</button>${root.Profile ? `<button class="btn pf-open" data-act="stats">${root.Profile.avatarSVG(root.Profile.avatar, 22)}My stats</button>` : ""}</div></div></div></div></div></div>`;
   }
 
   // ------------------------------------------------------------------ input
@@ -429,6 +470,7 @@
       const act = a.dataset.act;
       if (act === "deal") return newGame();
       if (act === "online") return openOnline();
+      if (act === "stats") return openStats();
       if (act === "level") { const b = e.target.closest("[data-level]"); if (b) { cfg().level = b.dataset.level; Store.save(); render(); } return; }
       if (act === "go-settings") { e.preventDefault(); return root.App.go("settings"); }
       if (act === "hint") return hint();
@@ -525,13 +567,15 @@
       return;
     }
     T.openSheet(`<h3>Spades</h3><p>You and Partner against Left and Right. First team to ${S.game.opts.target} wins.</p>` +
-      `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="new">New game</button><button class="btn" data-m="rules">Rules</button><button class="btn" data-m="strength">How strong?</button></div>`,
+      (S.daily ? `<p class="muted">Today's Daily game: the same deals for everyone, no Undo.</p>` : !S.done ? `<p class="muted">Leaving before the end counts as a loss in My stats.</p>` : "") +
+      `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-m="new">New game</button><button class="btn" data-m="rules">Rules</button><button class="btn" data-m="strength">How strong?</button>${root.Profile ? `<button class="btn" data-m="stats">My stats</button>` : ""}</div>`,
       (sh) => sh.addEventListener("click", (e) => {
         const b = e.target.closest("[data-m]");
         if (!b) return;
-        if (b.dataset.m === "new") { T.closeSheet(); gen++; S = null; persist(); render(); }
+        if (b.dataset.m === "new") { T.closeSheet(); quit(); gen++; S = null; persist(); render(); }
         if (b.dataset.m === "rules") { T.closeSheet(); setTimeout(() => root.Lab.rulesSheet("spades"), 30); }
         if (b.dataset.m === "strength") { T.closeSheet(); setTimeout(() => root.Lab.strengthSheet("spades"), 30); }
+        if (b.dataset.m === "stats") { T.closeSheet(); setTimeout(openStats, 30); }
       }));
   }
 
@@ -633,5 +677,5 @@
   }
   function show() { if (S) step(); else render(); }
 
-  root.SpadesUI = { mount, show, render, get state() { return S; }, get room() { return R; }, newGame };
+  root.SpadesUI = { mount, show, render, get state() { return S; }, get room() { return R; }, newGame, startDaily, openStats };
 })(typeof self !== "undefined" ? self : globalThis);
