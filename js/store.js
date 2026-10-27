@@ -3,19 +3,19 @@
 (function (root) {
   "use strict";
   const KEY = "heartsSpades:v1";
-  const VERSION = "2026-10-27a";
+  const VERSION = "2026-10-27b";
 
   const DEFAULTS = {
     tab: "hearts",
     hearts: {
       level: "medium",
-      target: 100, moon: "add", jack: false, queenBreaks: false, bleed: false, passing: "cycle4",
+      target: 100, moon: "add", jack: false, queenBreaks: false, bleed: false, passing: "cycle4", players: 4, points: "standard",
       tracker: true, moonWarn: true, study: true, speed: "normal",
     },
     spades: {
       level: "medium",
       target: 500, nil: true, blindNil: false, blindNilBehind: 100, bagLimit: 10, bagPenalty: 100,
-      nilCounts: false, spadesLead: "broken", loseAt: 0, firstLead: "left",
+      nilCounts: false, spadesLead: "broken", loseAt: 0, firstLead: "left", bidding: "standard",
       advisor: true, study: true, tracker: true,
     },
     games: { hearts: null, spades: null },     // saved games in progress

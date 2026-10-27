@@ -37,7 +37,13 @@
   function optsFromCfg() {
     const c = cfg();
     return { target: c.target, nil: c.nil, blindNil: c.blindNil, blindNilBehind: c.blindNilBehind, bagLimit: c.bagLimit, bagPenalty: c.bagPenalty,
-      nilCounts: c.nilCounts, spadesLead: c.spadesLead, loseAt: c.loseAt, firstLead: c.firstLead };
+      nilCounts: c.nilCounts, spadesLead: c.spadesLead, loseAt: c.loseAt, firstLead: c.firstLead, bidding: c.bidding };
+  }
+  /** The allowed bid nearest to b (bidding variants limit the bids). */
+  function nearAllowed(b) {
+    const ok = S_.allowedBids(S.game, ME);
+    if (!ok.length || ok.includes(b)) return b;
+    return ok.reduce((a, x) => (Math.abs(x - b) < Math.abs(a - b) ? x : a));
   }
 
   function newGame() {
@@ -160,7 +166,7 @@
     S.adviceP = root.Think.run("spadesAdvise", S.game, ME, 360).then((A) => {
       if (my !== gen || !S || S.game.handNo !== hn) return null;
       S.advice = A;
-      if (S.bidPick === null && cfg().advisor) S.bidPick = A.best.bid;
+      if (S.bidPick === null && cfg().advisor) S.bidPick = nearAllowed(A.best.bid);
       render();
       return A;
     }, () => null);
@@ -169,7 +175,7 @@
 
   function hint() {
     const g = S.game, h = g.hand;
-    if (h.phase === "bid" && h.bidTurn === ME) { computeAdvice().then((A) => { if (A && S) { S.bidPick = A.best.bid; render(); } }); return; }
+    if (h.phase === "bid" && h.bidTurn === ME) { computeAdvice().then((A) => { if (A && S) { S.bidPick = nearAllowed(A.best.bid); render(); } }); return; }
     if (h.phase === "exchange") { S.sel = new Set(AI.chooseExchange(h.hands[ME], h.exchange.nilSeat === ME)); return render(); }
     if (h.phase !== "play" || h.turn !== ME || S.busy || S.thinking) return;
     if (S.hint && S.hint.forTrick === key(h)) { S.hint = null; return render(); }
@@ -310,11 +316,11 @@
         `<div class="dist">${A.dist.slice(0, maxK + 1).map((p, i) => `<div class="b${i === S.bidPick ? " mine" : ""}"><i style="height:${(p / peak) * 100}%"></i><span>${i}</span></div>`).join("")}</div>` +
         `<div class="muted" style="text-align:center;margin-bottom:6px">Tricks you took in ${360} play-outs</div>`;
     }
-    const minBid = g.opts.nil ? 0 : 1;
+    const allowed = new Set(S_.allowedBids(g, ME));
     let bids = "";
     for (let b = 0; b <= 13; b++) {
-      const dis = b < minBid;
-      bids += `<button data-bid="${b}" aria-pressed="${S.bidPick === b}" class="${A && A.best.bid === b ? "sugg" : ""}" ${dis ? "disabled" : ""}>${b === 0 ? "Nil" : b}</button>`;
+      const dis = !allowed.has(b);
+      bids += `<button data-bid="${b}" aria-pressed="${S.bidPick === b}" class="${A && nearAllowed(A.best.bid) === b ? "sugg" : ""}" ${dis ? "disabled" : ""}>${b === 0 ? "Nil" : b}</button>`;
     }
     return `<div class="panel-c">${adv}<div class="bids" data-act="pickbid">${bids}</div>` +
       (A ? `<div class="muted" style="margin-top:6px">Green dot = best average score (${A.best.ev >= 0 ? "+" : ""}${A.best.ev.toFixed(0)} vs them)</div>` : "") + `</div>`;
@@ -371,6 +377,7 @@
     if (c.nilCounts) rules.push("nil tricks count");
     if (c.loseAt) rules.push(`lose at −${c.loseAt}`);
     if (c.firstLead === "2c") rules.push("2♣ leads");
+    if (c.bidding && c.bidding !== "standard") rules.unshift(c.bidding[0].toUpperCase() + c.bidding.slice(1) + " bidding");
     el.innerHTML = `<div class="game"><div class="game-main">` +
       `<div class="bar"><div class="grow"><span class="title">Spades</span><span class="meta">You + computer partner vs 2 computers</span></div></div>` +
       `<div class="table tbl-surface tbl-felt-green"><div class="felt">${T.restDeckHTML()}<div class="panel-c start"><h3>New game</h3>` +
@@ -395,7 +402,7 @@
       if (act === "go-settings") { e.preventDefault(); return root.App.go("settings"); }
       if (act === "hint") return hint();
       if (act === "menu") return menu();
-      if (act === "pickbid") { const b = e.target.closest("[data-bid]"); if (b) { S.bidPick = +b.dataset.bid; render(); } return; }
+      if (act === "pickbid") { const b = e.target.closest("[data-bid]"); if (b && !b.disabled) { S.bidPick = +b.dataset.bid; render(); } return; }
       if (act === "bid") return submitBid(S.bidPick, false);
       if (act === "blind") return submitBid(0, true);
       if (act === "look") { S.looked = true; S.dealAnim = true; S.flipAll = true; persist(); return render(); }

@@ -141,6 +141,12 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 .felt { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 .seat { position: absolute; z-index: 2; display: flex; align-items: center; gap: 6px; }
 .seat.top { top: 0; left: 50%; translate: -50% 0; flex-direction: column; gap: 3px; }
+/* 5 players: two far seats along the top edge */
+.seat.topl, .seat.topr { top: 0; translate: -50% 0; flex-direction: column; gap: 3px; }
+.seat.topl { left: 36%; } .seat.topr { left: 64%; }
+.seat.topl .ofan-wrap, .seat.topr .ofan-wrap { width: var(--fw); height: var(--fh); margin-top: calc(var(--ow) * -.3); }
+@media (max-width: 899px) { .table.n5 { --ow: 20px; } }
+.table.n5 .trick { --ty0: 67%; }
 /* phone: the side players sit high enough that their plates and piles stay clear of the trick */
 .seat.left { left: 0; top: 27%; translate: 0 -50%; }
 .seat.right { right: 0; top: 27%; translate: 0 -50%; flex-direction: row-reverse; }
@@ -201,6 +207,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 .trick .slot.s1 { left: calc(var(--tdx) * -1); top: 0; }
 .trick .slot.s2 { left: 0; top: calc(var(--tdy) * -1); }
 .trick .slot.s3 { left: var(--tdx); top: 0; }
+/* 5 players: the two far seats' cards sit up and to each side, clear of the left/right cards' corners */
+.trick .slot.s4 { left: calc(var(--tdx) * -.56); top: calc(var(--tdy) * -1 - var(--tw) * .45); }
+.trick .slot.s5 { left: calc(var(--tdx) * .56); top: calc(var(--tdy) * -1 - var(--tw) * .45); }
 /* the squared deck waiting on the table before the first deal */
 .rest-deck { position: absolute; left: 50%; top: 14px; translate: -50% 0; z-index: 1; --card-w: calc(var(--tw) * .8); pointer-events: none; }
 .rest-deck > .tbl-card { display: block; rotate: -4deg; }
@@ -210,6 +219,8 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 .trick .slot.s1 .pc { --fx: -150px; --fy: 0px; }
 .trick .slot.s2 .pc { --fx: 0px; --fy: -150px; }
 .trick .slot.s3 .pc { --fx: 150px; --fy: 0px; }
+.trick .slot.s4 .pc { --fx: -70px; --fy: -150px; }
+.trick .slot.s5 .pc { --fx: 70px; --fy: -150px; }
 @keyframes fly { from { transform: translate(var(--fx), var(--fy)) rotate(-8deg); opacity: .2; } to { transform: none; opacity: 1; } }
 .trick .slot .pc { box-shadow: 0 1px 1px rgba(0,0,0,.35), 0 4px 10px rgba(0,0,0,.35); }
 .trick.collect .slot .pc { animation: none; transition: transform .38s ease-in, opacity .38s ease-in; transform: translate(var(--tx), var(--ty)) scale(.3) rotate(25deg); opacity: 0; }
@@ -379,7 +390,8 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 .start { max-width: 420px; margin: 0 auto; }
 .start .levels { margin: 10px 0 12px; }
 .start a { white-space: nowrap; text-decoration-color: rgba(110,168,254,.45); text-underline-offset: 2px; }
-.start .seats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.start .seats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
+.start .seg.players { margin-bottom: 8px; }
 .start .seats div { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 9px; padding: 6px; text-align: center; font-size: 12px; color: var(--muted); }
 .start .seats b { display: block; color: var(--text); font-size: 13px; }
 

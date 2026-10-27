@@ -10,10 +10,11 @@
       const C = root.Cards, H = root.Hearts;
       const mine = new Set(h.hands[me]);
       const keys = [H.QS, C.card(C.SPADES, 12), C.card(C.SPADES, 11), C.card(C.HEARTS, 12)].filter((c) => !h.played[c] && !mine.has(c));
-      const cnt = keys.map(() => [0, 0, 0]);
+      const n = h.hands.length;
+      const cnt = keys.map(() => new Array(n - 1).fill(0));
       for (let i = 0; i < N; i++) {
         const w = HA().sampleWorld(h, me, Math.random);
-        keys.forEach((c, j) => { for (let k = 1; k < 4; k++) if (w[(me + k) % 4].includes(c)) cnt[j][k - 1]++; });
+        keys.forEach((c, j) => { for (let k = 1; k < n; k++) if (w[(me + k) % n].includes(c)) cnt[j][k - 1]++; });
       }
       return keys.map((c, j) => ({ card: c, p: cnt[j].map((x) => x / N) }));
     },

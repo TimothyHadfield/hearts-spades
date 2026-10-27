@@ -12,6 +12,9 @@
  *  - Blind nil (optional): bid before looking at your cards; +/-200. You then pass your
  *    partner 2 cards face down and your partner passes 2 back (Pagat).
  *  - First team to 500 wins; if both pass it on the same hand, the higher score wins.
+ * Bidding variants (opts.bidding, Pagat): "standard"; "whiz" (bid your number of spades, or nil);
+ * "mirror" (bid exactly your number of spades); "suicide" (on each team one partner bids nil and
+ * the other bids 4 or more).
  * Online-ready interface: apply(state, action) / view(state, seat). */
 (function (root) {
   "use strict";
@@ -19,7 +22,7 @@
   const { suit, rank, SPADES } = C;
   const DEFAULTS = {
     target: 500, nil: true, blindNil: false, blindNilBehind: 100, bagLimit: 10, bagPenalty: 100,
-    nilCounts: false, spadesLead: "broken", loseAt: 0, firstLead: "left",
+    nilCounts: false, spadesLead: "broken", loseAt: 0, firstLead: "left", bidding: "standard",
   };
   const team = (s) => s % 2;
 
@@ -70,12 +73,28 @@
     return game.scores[1 - t] - game.scores[t] >= (game.opts.blindNilBehind || 0);
   }
 
+  /** The bids `seat` may make now (blind nil aside), sorted low to high. */
+  function allowedBids(game, seat) {
+    const h = game.hand, o = game.opts;
+    const all = [];
+    for (let b = 0; b <= 13; b++) all.push(b);
+    const sp = h && h.hands[seat] ? h.hands[seat].filter((c) => c !== null && suit(c) === SPADES).length : 0;
+    if (o.bidding === "mirror") return [sp];
+    if (o.bidding === "whiz") return sp ? [0, sp] : [0];
+    if (o.bidding === "suicide") {
+      const pb = h ? h.bids[(seat + 2) % 4] : null;
+      if (pb === null || pb === undefined) return all.filter((b) => b === 0 || b >= 4);
+      return pb === 0 ? all.filter((b) => b >= 4) : [0];
+    }
+    return o.nil ? all : all.filter((b) => b > 0);
+  }
+
   function submitBid(game, seat, bid, blind) {
     const h = game.hand;
     if (!h || h.phase !== "bid") throw new Error("not bidding now");
     if (seat !== h.bidTurn) throw new Error("not your bid");
     if (!Number.isInteger(bid) || bid < 0 || bid > 13) throw new Error("bid 0-13");
-    if (bid === 0 && !game.opts.nil) throw new Error("nil is off");
+    if (!blind && !allowedBids(game, seat).includes(bid)) throw new Error(bid === 0 && !game.opts.nil ? "nil is off" : "bid not allowed in this variant");
     if (blind && (bid !== 0 || !blindNilAllowed(game, seat))) throw new Error("blind nil not allowed");
     h.bids[seat] = bid;
     h.blind[seat] = !!blind;
@@ -295,7 +314,7 @@
   }
 
   const api = {
-    DEFAULTS, team, newGame, deal, submitBid, submitExchange, blindNilAllowed, startPlay,
+    DEFAULTS, team, newGame, deal, submitBid, allowedBids, submitExchange, blindNilAllowed, startPlay,
     legal, trickWinner, playRaw, play, scoreTeam, finishHand, gameEnd, apply, view, toAct,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

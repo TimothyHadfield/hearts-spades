@@ -317,9 +317,12 @@
 
   function chooseBid(game, seat, level, rnd) {
     rnd = rnd || Math.random;
-    if (level === "easy") return easyBid(game, seat, rnd);
-    if (level === "hard") return hardBid(game, seat, rnd);
-    return mediumBid(game, seat);
+    const b = level === "easy" ? easyBid(game, seat, rnd) : level === "hard" ? hardBid(game, seat, rnd) : mediumBid(game, seat);
+    // Bidding variants (Whiz, Mirror, Suicide) limit the bids: take the allowed one nearest the
+    // bid we'd like (a tie goes to the lower bid).
+    const ok = S.allowedBids ? S.allowedBids(game, seat) : null;
+    if (!ok || !ok.length || ok.includes(b)) return b;
+    return ok.reduce((a, x) => (Math.abs(x - b) < Math.abs(a - b) ? x : a));
   }
 
   function chooseMove(game, seat, level, rnd) {

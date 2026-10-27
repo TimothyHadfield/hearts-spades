@@ -16,7 +16,8 @@
   const H = isNode ? require("./hearts.js") : root.Hearts;
   const { suit, rank, HEARTS, SPADES } = C;
   const QS = H.QS;
-  const points = H.points;
+  const points = (c, h) => H.points(c, h && h.scheme);
+  const nOf = (h) => h.hands.length;
 
   const LEVELS = {
     easy: { random: 0.5 },
@@ -52,9 +53,9 @@
   // ----------------------------------------------------------- moon awareness
   function moonMode(h, seat) {
     let tot = 0;
-    for (let s = 0; s < 4; s++) tot += h.taken[s];
+    for (let s = 0; s < nOf(h); s++) tot += h.taken[s];
     const res = { shoot: false, block: -1 };
-    if (tot < 13) return res;
+    if (tot < H.totalPoints(h.scheme) / 2) return res;
     const holder = h.taken.findIndex((t) => t === tot);
     if (holder < 0) return res;
     if (holder === seat) {
@@ -64,7 +65,7 @@
         const c = C.card(HEARTS, r);
         if (!h.played[c] && !mine.has(c)) outHearts++;
       }
-      if (outHearts <= 2 && h.trickNo >= 6) res.shoot = true;
+      if (outHearts <= 2 && h.trickNo >= Math.round((h.tricksTotal || 13) * 0.46)) res.shoot = true;
     } else res.block = holder;
     return res;
   }
@@ -84,8 +85,8 @@
     let win = h.trick[0];
     for (const t of h.trick) if (suit(t.card) === led && rank(t.card) > rank(win.card)) win = t;
     let pts = 0;
-    for (const t of h.trick) pts += points(t.card);
-    const last = h.trick.length === 3;
+    for (const t of h.trick) pts += points(t.card, h);
+    const last = h.trick.length === nOf(h) - 1;
 
     if (suit(moves[0]) === led) {
       const under = moves.filter((c) => rank(c) < rank(win.card));
@@ -149,7 +150,7 @@
       if (!inSuit.length) continue;
       const low = lo(inSuit);
       let score = rank(low);
-      for (let o = 0; o < 4; o++) if (o !== seat && h.voids[o][s]) score += 6;
+      for (let o = 0; o < nOf(h); o++) if (o !== seat && h.voids[o][s]) score += 6;
       if (s === HEARTS) score += 2;
       if (s === SPADES && (iHoldQ || (holdHighSpade && qOut))) score += 50;
       if (score < bestScore) { bestScore = score; best = low; }
@@ -167,15 +168,17 @@
   /** Deal the cards `seat` can't see, consistent with what it knows. */
   function sampleWorld(h, seat, rnd) {
     const mine = new Set(h.hands[seat]);
-    const fixed = [[], [], [], []];
+    const n = nOf(h);
+    const fixed = h.hands.map(() => []);
     const known = new Set();
-    if (h.passOffset && h.passes[seat] && h.received[(seat + h.passOffset) % 4]) {
-      const to = (seat + h.passOffset) % 4;
+    if (h.passOffset && h.passes[seat] && h.received[(seat + h.passOffset) % n]) {
+      const to = (seat + h.passOffset) % n;
       for (const c of h.passes[seat]) if (!h.played[c]) { fixed[to].push(c); known.add(c); }
     }
     const unseen = [];
-    for (let c = 0; c < 52; c++) if (!h.played[c] && !mine.has(c) && !known.has(c)) unseen.push(c);
-    const need = [0, 1, 2, 3].map((s) => (s === seat ? 0 : h.hands[s].length));
+    const out = new Set(H.REMOVED[n] || []);
+    for (let c = 0; c < 52; c++) if (!h.played[c] && !mine.has(c) && !known.has(c) && !out.has(c)) unseen.push(c);
+    const need = h.hands.map((x, s) => (s === seat ? 0 : x.length));
     const hands = C.dealUnseen(unseen, need, fixed, h.voids, rnd);
     hands[seat] = h.hands[seat].slice();
     return hands;
@@ -187,21 +190,25 @@
       taken: h.taken.slice(), tricksWon: h.tricksWon.slice(), heartsBroken: h.heartsBroken,
       jackBy: h.jackBy, queenBreaks: h.queenBreaks, bleed: h.bleed,
       played: h.played.slice(), plays: null, voids: h.voids.map((v) => v.slice()),
-      phase: "play", passOffset: h.passOffset, passes: [null, null, null, null], received: [null, null, null, null],
+      phase: "play", passOffset: h.passOffset, passes: h.hands.map(() => null), received: h.hands.map(() => null),
+      tricksTotal: h.tricksTotal || 13, scheme: h.scheme, leadCard: h.leadCard,
     };
   }
 
   function rollout(st) {
-    while (st.trickNo < 13) H.playRaw(st, st.turn, mediumMove(st, st.turn));
+    const T = st.tricksTotal || 13;
+    while (st.trickNo < T) H.playRaw(st, st.turn, mediumMove(st, st.turn));
   }
 
   /** Points for `seat` that also count a moon: equals own points in a normal hand. */
   function value(st, seat, opts) {
     opts = opts || {};
-    const p = H.handPoints(st.taken, opts.moon, opts.jack ? st.jackBy : -1).pts;
+    const n = st.taken.length, T = H.totalPoints(st.scheme);
+    const p = H.handPoints(st.taken, opts.moon, opts.jack ? st.jackBy : -1, null, 100, T).pts;
     let others = 0;
-    for (let s = 0; s < 4; s++) if (s !== seat) others += p[s];
-    return 0.75 * (p[seat] - others / 3) + 6.5;
+    for (let s = 0; s < n; s++) if (s !== seat) others += p[s];
+    // (n-1)/n of (mine - others' average) plus an even share: equals your own points in a normal hand.
+    return ((n - 1) / n) * (p[seat] - others / (n - 1)) + T / n;
   }
 
   /**
@@ -243,7 +250,7 @@
     for (let k = 0; k < samples; k++) {
       const st = simState(h, sampleWorld(h, viewer, rnd));
       rollout(st);
-      if (st.taken[target] === 26) hits++;
+      if (st.taken[target] === H.totalPoints(st.scheme)) hits++;
     }
     return hits / samples;
   }
@@ -251,7 +258,7 @@
   /** Is anyone (other than `viewer`) holding every point taken so far? Returns seat or -1. */
   function moonThreat(h, viewer, minPoints) {
     let tot = 0;
-    for (let s = 0; s < 4; s++) tot += h.taken[s];
+    for (let s = 0; s < nOf(h); s++) tot += h.taken[s];
     if (tot < (minPoints || 1)) return -1;
     const s = h.taken.findIndex((t) => t === tot);
     return s >= 0 && s !== viewer ? s : -1;

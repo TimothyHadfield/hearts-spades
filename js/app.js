@@ -11,6 +11,7 @@
   const SCHEMA = [
     ["hearts", "Hearts rules", [
       ["target", "Game to", "seg", [[50, "50"], [100, "100"]]],
+      ["points", "Point cards", "seg", [["standard", "Standard"], ["maria", "Black Maria"], ["spot", "Spot"]], "points"],
       ["passing", "Passing", "seg", [["cycle4", "L·R·A·Keep"], ["cycle3", "L·R·A"], ["left", "Left"], ["none", "None"]]],
       ["moon", "Moon", "seg", [["add", "+26 others"], ["subtract", "−26 me"], ["choice", "Choice"]], "moonChoice"],
       ["jack", "Jack of diamonds −10", "switch", null, "jack"],
@@ -19,6 +20,7 @@
     ]],
     ["spades", "Spades rules", [
       ["target", "Game to", "seg", [[200, "200"], [300, "300"], [500, "500"]]],
+      ["bidding", "Bidding", "seg", [["standard", "Standard"], ["whiz", "Whiz"], ["mirror", "Mirror"], ["suicide", "Suicide"]], "bidding"],
       ["nil", "Nil bids", "switch"],
       ["blindNil", "Blind nil", "switch", null, "blindNil"],
       ["blindNilBehind", "Blind nil only when behind", "seg", [[100, "100+"], [0, "Any time"]]],

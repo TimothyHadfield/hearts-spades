@@ -8,7 +8,10 @@
   const fx = () => root.FX;
   const QS = 36;                                  // queen of spades (cards.js: suit*13 + rank)
   const suit = (c) => (c / 13) | 0;
-  const rel = (seat, me) => (seat - me + 4) % 4;
+  // place to your left, folded onto the 4 sides of the table (you, left, across, right) for panning
+  let NP = 4;
+  const FOLD = { 3: [0, 1, 3], 4: [0, 1, 2, 3], 5: [0, 1, 2, 2, 3] };
+  const rel = (seat, me) => (FOLD[NP] || FOLD[4])[(seat - me + NP) % NP];
   const PAN = [0, -0.5, 0, 0.5];                  // you, left, across, right
 
   // ---------------------------------------------------------- custom sounds
@@ -70,6 +73,7 @@
     const ev = [];
     if (!c || !c.g || !c.g.hand) return ev;
     const g = c.g, h = g.hand, me = c.me;
+    NP = h.hands ? h.hands.length : 4;
     if (!p || !p.g || !p.g.hand) {             // first look at this game: just the deal, if it's animating
       if (c.dealAnim) ev.push({ t: "deal" });
       return ev;

@@ -6,6 +6,8 @@
   "use strict";
   const { Cards: C, Hearts: H, HeartsAI: AI, Table: T, Art, Store } = root;
   const BASE_NAMES = ["You", "Left", "Across", "Right"];
+  // 3 or 5 at the table (offline only; online rooms are always 4)
+  const NAMES_BY_N = { 3: ["You", "Left", "Right"], 4: BASE_NAMES, 5: ["You", "Left", "Far left", "Far right", "Right"] };
   let NAMES = BASE_NAMES;   // by position relative to you: you, left, across, right
   let ME = 0;               // your seat (0 on this device; online it's whatever seat you got)
   let R = null;             // online room: { snap } while you're in one
@@ -35,6 +37,7 @@
   }
 
   function blank(game, level) {
+    if (!R) NAMES = NAMES_BY_N[game.scores.length] || BASE_NAMES;
     return {
       game, level, sel: new Set(), fresh: new Set(), freshTrick: new Set(), showTrick: null, collecting: false,
       hint: null, lastLoss: null, handStudy: [], moon: null, dealAnim: false, busy: false, recorded: -1, keyProbs: null, thinking: false, cpuPending: null,
@@ -45,7 +48,7 @@
   function newGame() {
     gen++;
     const c = cfg();
-    let g = H.apply(null, { type: "new", opts: { target: c.target, moon: c.moon, jack: c.jack, queenBreaks: c.queenBreaks, bleed: c.bleed, passing: c.passing } });
+    let g = H.apply(null, { type: "new", opts: { target: c.target, moon: c.moon, jack: c.jack, queenBreaks: c.queenBreaks, bleed: c.bleed, passing: c.passing, players: c.players, points: c.points } });
     S = blank(g, c.level);
     dealNext();
   }
@@ -57,7 +60,7 @@
     S.dealAnim = true;
     // Computers choose their passes straight away; you pick yours.
     if (g.hand.phase === "pass") {
-      for (let s = 1; s < 4; s++) S.game = H.apply(S.game, { type: "pass", seat: s, cards: AI.choosePass(S.game.hand.hands[s], S.level) });
+      for (let s = 1; s < g.hand.hands.length; s++) S.game = H.apply(S.game, { type: "pass", seat: s, cards: AI.choosePass(S.game.hand.hands[s], S.level) });
     }
     persist();
     step();
@@ -196,18 +199,19 @@
     if (!el) return;
     if (!S) return renderStart();
     const g = S.game, h = g.hand;
+    const N = h.hands.length;
     const passing = h.phase === "pass";
-    const passName = H.PASS_NAMES[h.passOffset];
+    const passName = H.passName(h.passOffset, N);
     const trickShown = S.showTrick ? S.showTrick.cards : h.trick;
     const win = S.showTrick ? S.showTrick.winner : -1;
     const myTurn = h.phase === "play" && h.turn === ME && !S.busy;
 
     let seats = "";
-    const piles = T.wonPiles(h, H.trickWinner, (c) => C.suit(c) === 3 || c === 36 || (g.opts.jack && c === 22), !!S.showTrick);
-    for (let s = 0; s < 4; s++) {
-      const pos = T.POS[T.rel(s, ME)];
+    const piles = T.wonPiles(h, H.trickWinner, (c) => H.points(c, h.scheme) > 0 || (g.opts.jack && c === 22), !!S.showTrick);
+    for (let s = 0; s < N; s++) {
+      const pos = T.posOf(T.rel(s, ME, N), N);
       seats += T.seatHTML({
-        pos, seat: s, name: NAMES[T.rel(s, ME)], score: g.scores[s], sub: seatSub(h, s), cpu: !!R && isCpu(s),
+        pos, seat: s, name: NAMES[T.rel(s, ME, N)], score: g.scores[s], sub: seatSub(h, s), cpu: !!R && isCpu(s),
         turn: h.phase === "play" && h.turn === s && !S.busy, count: s !== ME ? h.hands[s].length - (passing && h.passes[s] ? 3 : 0) : null,
         won: piles.n[s], pts: piles.pts[s], deal: S.dealAnim, passed: passing && !!h.passes[s],
       });
@@ -221,10 +225,10 @@
     else if (passing && !h.passes[ME]) center = `<div class="felt-msg">Pass 3 cards <b>${passName}</b></div>`;
     else if (h.trickNo === 0 && !trickShown.length && h.received[ME] && S.fresh.size) center = `<div class="felt-msg">Blue outline = cards you got</div>`;
 
-    const moon = S.moon && h.phase === "play" ? `<div class="moon">Moon risk · ${NAMES[T.rel(S.moon.seat, ME)]} ${Math.round(S.moon.chance * 100)}%${T.help("moon")}</div>` : "";
+    const moon = S.moon && h.phase === "play" ? `<div class="moon">Moon risk · ${NAMES[T.rel(S.moon.seat, ME, N)]} ${Math.round(S.moon.chance * 100)}%${T.help("moon")}</div>` : "";
 
     const metaTxt = h.phase === "pass" ? `Hand ${g.handNo + 1} · pass ${passName}` :
-      h.phase === "play" ? `Hand ${g.handNo + 1} · trick ${Math.min(13, h.trickNo + 1)} of 13` : `Hand ${g.handNo} done`;
+      h.phase === "play" ? `Hand ${g.handNo + 1} · trick ${Math.min(h.tricksTotal || 13, h.trickNo + 1)} of ${h.tricksTotal || 13}` : `Hand ${g.handNo} done`;
 
     const td = T.trackerData(h, ME);
     el.innerHTML =
@@ -232,15 +236,15 @@
       `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">${metaTxt} · ${S.level}</span></div>` +
       `<button class="btn sm hint-btn${S.hint ? " on" : ""}${S.thinking ? " thinking" : ""}" data-act="hint" ${(myTurn || (passing && !h.passes[ME])) && !S.thinking ? "" : "disabled"}>Hint</button>` +
       `<button class="icon-btn" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button></div>` +
-      `<div class="table tbl-surface tbl-felt-green${padOut ? " end" : ""}"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null)}${S.dealAnim ? T.deckHTML() : ""}${center}${moon}</div>` +
+      `<div class="table tbl-surface tbl-felt-green${padOut ? " end" : ""}${N !== 4 ? " n" + N : ""}"><div class="felt">${seats}${T.trickHTML(trickShown, ME, S.freshTrick, win, S.collecting ? win : null, N)}${S.dealAnim ? T.deckHTML() : ""}${center}${moon}</div>` +
       (padOut ? `<div class="pad-slot">${summaryHTML()}</div>` :
-        (cfg().tracker ? T.stripHTML(td, NAMES, ME) : "") +
+        (cfg().tracker ? T.stripHTML(td, NAMES, ME, N) : "") +
         `<div class="prompt" id="h-prompt">${promptHTML()}</div>` +
         `<div class="hand-wrap">${handHTMLFor(h, myTurn, passing)}</div>`) +
       `</div></div><aside class="game-side">${sideHTML(td)}</aside></div>`;
     T.fitHand(el.querySelector(".hand-wrap"));
     if (S.dealAnim) T.runDeck(el);
-    if (passDone && h.phase === "play") T.passFly(el, h.passOffset, ME);
+    if (passDone && h.phase === "play") T.passFly(el, h.passOffset, ME, N);
     if (root.GameFX) root.GameFX.observe("hearts", { g: S.game, me: ME, dealAnim: S.dealAnim, show: S.showTrick, collecting: S.collecting, busy: S.busy }, el);
     S.dealAnim = false; S.flipNew = false; S.freshTrick.clear(); // a played card lands once, not again on every redraw
   }
@@ -274,17 +278,17 @@
     let msg = "", btn = "";
     if (h.phase === "pass") {
       if (!h.passes[ME]) {
-        msg = `<b>Pick 3 to pass ${H.PASS_NAMES[h.passOffset]}</b><span class="small">${S.sel.size}/3 chosen${S.hint && S.hint.pass ? " · green = suggested" + "" : ""}</span>`;
+        msg = `<b>Pick 3 to pass ${H.passName(h.passOffset, h.hands.length)}</b><span class="small">${S.sel.size}/3 chosen${S.hint && S.hint.pass ? " · green = suggested" + "" : ""}</span>`;
         btn = `<button class="btn warm" data-act="pass" ${S.sel.size === 3 ? "" : "disabled"}>Pass</button>`;
       }
     } else if (h.phase === "play") {
       if (h.turn === ME && !S.busy) {
         const lead = h.trick.length === 0;
-        msg = `<b>${lead ? (h.trickNo === 0 ? "Lead the 2♣" : "Your lead") : "Your turn"}</b>`;
+        msg = `<b>${lead ? (h.trickNo === 0 ? "Lead the " + C.name(h.leadCard >= 0 ? h.leadCard : 0) : "Your lead") : "Your turn"}</b>`;
         if (S.sel.size) msg += `<span class="small">Tap again to play</span>`;
         else msg += lossLine();
       } else {
-        msg = `<span>${S.busy ? (S.showTrick ? NAMES[T.rel(S.showTrick.winner, ME)] + " take" + (S.showTrick.winner === ME ? "" : "s") + " it" + (S.showTrick.points ? ` · ${S.showTrick.points} pt${S.showTrick.points > 1 ? "s" : ""}` : "") : "") : NAMES[T.rel(h.turn, ME)] + " is playing…"}</span>` + lossLine();
+        msg = `<span>${S.busy ? (S.showTrick ? NAMES[T.rel(S.showTrick.winner, ME, h.hands.length)] + " take" + (S.showTrick.winner === ME ? "" : "s") + " it" + (S.showTrick.points ? ` · ${S.showTrick.points} pt${S.showTrick.points > 1 ? "s" : ""}` : "") : "") : NAMES[T.rel(h.turn, ME, h.hands.length)] + " is playing…"}</span>` + lossLine();
       }
       if (S.hint && S.hint.list && h.turn === ME) btn = T.help("ev");
     } else {
@@ -309,13 +313,14 @@
     const g = S.game, h = g.hand, r = h.result;
     const lost = S.handStudy.reduce((a, x) => a + x.lost, 0);
     let rows = "";
-    const order = [0, 1, 2, 3].map((k) => (ME + k) % 4);
+    const N = g.scores.length;
+    const order = g.scores.map((_, k) => (ME + k) % N);
     const low = Math.min(...g.scores);
     for (const s of order) {
-      rows += `<tr class="${s === ME ? "me" : ""}"><td>${NAMES[T.rel(s, ME)]}</td><td>${h.taken[s]}</td><td>${r.pts[s] > 0 ? "+" : ""}${r.pts[s]}</td><td class="${g.scores[s] === low ? "good" : ""}">${g.scores[s]}</td></tr>`;
+      rows += `<tr class="${s === ME ? "me" : ""}"><td>${NAMES[T.rel(s, ME, N)]}</td><td>${h.taken[s]}</td><td>${r.pts[s] > 0 ? "+" : ""}${r.pts[s]}</td><td class="${g.scores[s] === low ? "good" : ""}">${g.scores[s]}</td></tr>`;
     }
-    let title = g.over ? (g.winners.includes(ME) ? (g.winners.length > 1 ? "You tie for the win" : "You win!") : NAMES[T.rel(g.winners[0], ME)] + " wins") : "Hand " + g.handNo;
-    let note = r.moonBy >= 0 ? `<div class="warm" style="margin-bottom:6px;font-weight:700">${NAMES[T.rel(r.moonBy, ME)]} shot the moon!</div>` : "";
+    let title = g.over ? (g.winners.includes(ME) ? (g.winners.length > 1 ? "You tie for the win" : "You win!") : NAMES[T.rel(g.winners[0], ME, N)] + " wins") : "Hand " + g.handNo;
+    let note = r.moonBy >= 0 ? `<div class="warm" style="margin-bottom:6px;font-weight:700">${NAMES[T.rel(r.moonBy, ME, N)]} shot the moon!</div>` : "";
     return `<div class="panel-c pad"><h3>${T.esc(title)}</h3>${note}<table class="mini"><tr><th></th><th>Took</th><th>Scored</th><th>Total</th></tr>${rows}</table>` +
       (cfg().study && S.handStudy.length ? `<div class="muted" style="margin-top:8px">Your points lost this hand: <b style="color:${lost < 1 ? "var(--good)" : lost < 4 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(1)}</b> ${T.help("lost")}</div>` : "") +
       `<div class="row" style="margin-top:12px"><button class="btn" data-act="reveal">All hands</button><span style="flex:1"></span>` +
@@ -324,7 +329,8 @@
 
   function sideHTML(td) {
     const g = S.game, h = g.hand;
-    let hist = `<table class="mini"><tr><th>#</th>${[0, 1, 2, 3].map((s) => `<th>${T.esc(NAMES[T.rel(s, ME)].slice(0, 6))}</th>`).join("")}</tr>`;
+    const N = g.scores.length;
+    let hist = `<table class="mini"><tr><th>#</th>${g.scores.map((_, s) => `<th>${T.esc(shortName(NAMES[T.rel(s, ME, N)]))}</th>`).join("")}</tr>`;
     g.history.slice(-8).forEach((x, i) => {
       const n = g.history.length - Math.min(8, g.history.length) + i + 1;
       hist += `<tr><td>${n}</td>${x.pts.map((p) => `<td>${p}</td>`).join("")}</tr>`;
@@ -336,10 +342,12 @@
         : `<div class="muted" style="font-size:13px">Your plays this hand show here with the points each one lost.</div>`;
     }
     return `<div class="side-sec"><div class="pad side-pad"><h4>Scores · game to ${g.opts.target}</h4>${hist}</div></div>` +
-      (cfg().tracker ? `<div class="side-sec"><h4>Cards left ${T.help("tracker")}</h4>${T.trackerDetailHTML(td, NAMES, ME, keyProbs())}</div>` : "") +
+      (cfg().tracker ? `<div class="side-sec"><h4>Cards left ${T.help("tracker")}</h4>${T.trackerDetailHTML(td, NAMES, ME, keyProbs(), N)}</div>` : "") +
       (cfg().study ? `<div class="side-sec fill"><h4>Points lost ${T.help("lost")}</h4>${study}</div>` : "");
   }
 
+  // "Far left" -> "F.left" would be cut; two-word seat names become "FL"/"FR" in the narrow score table
+  const shortName = (nm) => (/^Far (left|right)$/.test(nm) ? "F" + nm[4].toUpperCase() : nm.slice(0, 6));
   const sideVisible = () => root.matchMedia && root.matchMedia("(min-width: 900px)").matches;
 
   /** Where are the queen, king and ace of spades likely to be? Sampled from what you know.
@@ -379,16 +387,24 @@
     }
     const c = cfg();
     const lv = ["easy", "medium", "hard"];
-    const rules = [`Game to ${c.target}`, c.passing === "none" ? "no passing" : c.passing === "left" ? "pass left only" : c.passing === "cycle3" ? "pass L/R/across" : "pass L/R/across/keep",
-      c.moon === "subtract" ? "moon −26" : c.moon === "choice" ? "moon: shooter's choice" : "moon +26 to others"];
+    const np = [3, 4, 5].includes(c.players) ? c.players : 4;
+    const tot = H.totalPoints(c.points);
+    const across = np === 4 ? "/across" : "";
+    const rules = [`Game to ${c.target}`, c.passing === "none" ? "no passing" : c.passing === "left" ? "pass left only" : c.passing === "cycle3" && np === 4 ? "pass L/R/across" : `pass L/R${across}/keep`,
+      c.moon === "subtract" ? `moon −${tot}` : c.moon === "choice" ? "moon: shooter's choice" : `moon +${tot} to others`];
+    if (c.points === "maria") rules.unshift("Black Maria");
+    if (c.points === "spot") rules.unshift("Spot Hearts");
+    if (np === 3) rules.push("2♦ out");
+    if (np === 5) rules.push("2♣ 2♦ out, 3♣ leads");
     if (c.jack) rules.push("J♦ −10");
     if (c.queenBreaks) rules.push("Q♠ breaks hearts");
     if (c.bleed) rules.push("points on trick 1");
     el.innerHTML = `<div class="game"><div class="game-main">` +
-      `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">You vs 3 computers · lowest score wins</span></div></div>` +
+      `<div class="bar"><div class="grow"><span class="title">Hearts</span><span class="meta">You vs ${np - 1} computers · lowest score wins</span></div></div>` +
       `<div class="table tbl-surface tbl-felt-green"><div class="felt">${T.restDeckHTML()}<div class="panel-c start">` +
       `<h3>New game</h3>` +
-      `<div class="seats"><div>Left<b>Computer</b></div><div>Across<b>Computer</b></div><div>Right<b>Computer</b></div></div>` +
+      `<div class="seg players" data-act="players" aria-label="Players">${[3, 4, 5].map((n) => `<button data-players="${n}" aria-pressed="${np === n}">${n} players</button>`).join("")}</div>` +
+      `<div class="seats">${NAMES_BY_N[np].slice(1).map((nm) => `<div>${nm}<b>Computer</b></div>`).join("")}</div>` +
       `<div style="display:flex;align-items:center;font-size:13px;color:var(--muted)">Computer level ${T.help("level", "hearts")}</div>` +
       `<div class="seg levels" data-act="level">${lv.map((l) => `<button data-level="${l}" aria-pressed="${c.level === l}">${l[0].toUpperCase() + l.slice(1)}</button>`).join("")}</div>` +
       `<div class="muted" style="margin-bottom:12px">${rules.join(" · ")} · <a href="#settings" data-act="go-settings">change</a></div>` +
@@ -409,6 +425,11 @@
       if (act === "level") {
         const b = e.target.closest("[data-level]");
         if (b) { cfg().level = b.dataset.level; Store.save(); render(); }
+        return;
+      }
+      if (act === "players") {
+        const b = e.target.closest("[data-players]");
+        if (b) { cfg().players = +b.dataset.players; Store.save(); render(); }
         return;
       }
       if (act === "go-settings") { e.preventDefault(); return root.App.go("settings"); }
@@ -479,14 +500,14 @@
 
   function trackerSheet() {
     const h = S.game.hand;
-    T.openSheet(`<h3>Cards left ${T.help("tracker")}</h3>` + T.trackerDetailHTML(T.trackerData(h, ME), NAMES, ME, keyProbs(true)));
+    T.openSheet(`<h3>Cards left ${T.help("tracker")}</h3>` + T.trackerDetailHTML(T.trackerData(h, ME), NAMES, ME, keyProbs(true), h.hands.length));
   }
 
   function reveal() {
     const h = S.game.hand;
     let out = `<h3>Everyone's starting hand</h3>`;
-    for (let s = 0; s < 4; s++) {
-      out += `<div style="margin:8px 0 4px;font-size:13px;color:var(--muted)">${NAMES[T.rel(s, ME)]} · took ${h.taken[s]}</div><div style="display:flex;flex-wrap:wrap;gap:2px">` +
+    for (let s = 0; s < h.hands.length; s++) {
+      out += `<div style="margin:8px 0 4px;font-size:13px;color:var(--muted)">${NAMES[T.rel(s, ME, h.hands.length)]} · took ${h.taken[s]}</div><div style="display:flex;flex-wrap:wrap;gap:2px">` +
         h.start[s].map((c) => `<div style="width:30px">${Art.cardHTML(c)}</div>`).join("") + `</div>`;
       if (h.passes[s]) out += `<div style="font-size:12px;color:var(--muted);margin-top:2px">Passed ${h.passes[s].map(C.name).join(" ")}</div>`;
     }
