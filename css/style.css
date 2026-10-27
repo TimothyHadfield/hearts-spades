@@ -22,7 +22,7 @@
   --radius: 12px;
   --tabs-h: 60px;
   --cw: clamp(52px, calc((100vw - 20px) / 5.2), 74px);  /* hand card width (set per layout) */
-  --tw: 64px;            /* trick card width */
+  --tw: clamp(56px, min(19vw, 11.4vh), 84px);  /* trick card width: as big as the felt's middle allows */
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -136,13 +136,14 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
   --back: #1d2a4a; --ink: rgba(217,165,49,.42); --back-frame: #f7f4ec;
   --ow: 24px;              /* opponents' held cards */
   --wc: 17px; --wstep: 3px; /* tricks won, face down */
-  --pw: 18px; --pstep: 5px; /* Hearts point cards, face up */
+  --pw: 24px; --pstep: 6px; /* Hearts point cards, face up */
 }
 .felt { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 .seat { position: absolute; z-index: 2; display: flex; align-items: center; gap: 6px; }
 .seat.top { top: 0; left: 50%; translate: -50% 0; flex-direction: column; gap: 3px; }
-.seat.left { left: 0; top: 44%; translate: 0 -50%; }
-.seat.right { right: 0; top: 44%; translate: 0 -50%; flex-direction: row-reverse; }
+/* phone: the side players sit high enough that their plates and piles stay clear of the trick */
+.seat.left { left: 0; top: 27%; translate: 0 -50%; }
+.seat.right { right: 0; top: 27%; translate: 0 -50%; flex-direction: row-reverse; }
 .seat.bottom { left: 8px; bottom: 6px; }
 .seat-front { display: flex; align-items: center; gap: 6px; }
 .seat.left .seat-front, .seat.right .seat-front { flex-direction: column; gap: 5px; }
@@ -153,7 +154,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 .seat-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px; }
 .seat-score { font-size: 13px; font-weight: 800; color: #f3cf7a; font-variant-numeric: tabular-nums; }
 .seat.turn .plate.tbl-plate { border-color: #f0c35a; box-shadow: 0 0 0 2px rgba(240,195,90,.5), 0 0 14px rgba(240,195,90,.45); }
-.seat-sub { font-size: 11px; color: #e4efe8; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.seat-sub { font-size: 12.5px; color: #e4efe8; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
 .seat-sub .pts { color: #ffb3b3; font-weight: 700; }
 
 /* an opponent's held cards: a fan of backs drawn for the bottom seat, then turned to face its owner */
@@ -192,12 +193,14 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 
 /* trick area */
 /* a loose cross in the true middle of the table, clear of the seat plates */
-.trick { position: absolute; left: 50%; top: 54%; width: 0; height: 0; z-index: 3; }
+/* --tdx/--tdy: how far each card sits from the middle; side cards clear the middle two, so only
+   yours and Across's overlap, and yours lies on top so both corner indexes always show */
+.trick { position: absolute; left: 50%; top: var(--ty0, 60%); width: 0; height: 0; z-index: 3; --tdx: calc(var(--tw) + 10px); --tdy: calc(var(--tw) * .5); }
 .trick .slot { position: absolute; width: var(--tw); transform: translate(-50%, -50%); }
-.trick .slot.s0 { left: 0; top: 40px; }
-.trick .slot.s1 { left: -58px; top: 0; }
-.trick .slot.s2 { left: 0; top: -40px; }
-.trick .slot.s3 { left: 58px; top: 0; }
+.trick .slot.s0 { left: 0; top: var(--tdy); z-index: 1; }
+.trick .slot.s1 { left: calc(var(--tdx) * -1); top: 0; }
+.trick .slot.s2 { left: 0; top: calc(var(--tdy) * -1); }
+.trick .slot.s3 { left: var(--tdx); top: 0; }
 /* the squared deck waiting on the table before the first deal */
 .rest-deck { position: absolute; left: 50%; top: 14px; translate: -50% 0; z-index: 1; --card-w: calc(var(--tw) * .8); pointer-events: none; }
 .rest-deck > .tbl-card { display: block; rotate: -4deg; }
@@ -216,13 +219,14 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
   position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); z-index: 4; width: min(300px, calc(100% - 170px));
   text-align: center; font-size: 13px; color: var(--felt-text); pointer-events: none;
 }
+/* the moon warning / Spades make-it chip: the free bottom-right corner of the felt, clear of the trick */
 .moon {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 58px; z-index: 5;
+  position: absolute; right: 8px; bottom: 6px; z-index: 5; max-width: calc(100% - 16px);
   background: rgba(60,12,16,.88); border: 1px solid #a8434b; color: #ffd3d3; border-radius: 20px;
   padding: 4px 6px 4px 12px; font-size: 12.5px; font-weight: 650; display: flex; align-items: center; gap: 4px; white-space: nowrap;
-  animation: pop .25s ease;
+  animation: pop .25s ease; transform-origin: 100% 100%;
 }
-@keyframes pop { from { transform: translateX(-50%) scale(.85); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* center panel on the felt (hand summary, bidding, start) */
 .panel-c {
@@ -251,8 +255,8 @@ table.mini tr.me td { color: var(--text); font-weight: 700; }
 svg.suit { width: 16px; height: 16px; flex: none; }
 .strip .cell svg.suit { width: 15px; height: 15px; }
 .strip .n { font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; min-width: 16px; }
-.strip .voids { display: flex; flex-direction: column; font-size: 9.5px; line-height: 1.1; color: var(--muted); }
-.strip .voids b { color: var(--bad); font-weight: 700; }
+.strip .voids { display: flex; flex-direction: column; font-size: 10px; line-height: 1.1; color: var(--muted); }
+.strip .voids b { color: var(--bad); font-weight: 700; white-space: nowrap; }
 .strip .lbl { grid-column: 1 / -1; display: none; }
 .suit-red { fill: #e2584b; color: #e2584b; }
 .suit-black { fill: #d9dce6; color: #d9dce6; }
@@ -327,7 +331,9 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .felt:has(.panel-c.pad) .seat.top, .felt:has(.panel-c.pad) .seat.bottom { visibility: hidden; }
   /* Hearts point cards stay face up beside each pile on a phone too, just smaller */
   .table .wpts { display: block; }
-  .seat.left .won-area, .seat.right .won-area { flex-direction: column; gap: 4px; }
+  /* a side player's plate, line and piles (point cards beside the tricks) start at the top of
+     their seat, above the trick */
+  .seat.left .seat-front, .seat.right .seat-front { align-self: flex-start; padding-top: 8px; }
   .felt .panel-c { padding: 12px; }
   .panel-c .dist { height: 54px; }
 }
@@ -405,7 +411,7 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 
 /* ------------------------------------------------------------- laptop */
 @media (min-width: 900px) {
-  :root { --cw: clamp(76px, min(8vw, 12.5vh), 108px); --tw: clamp(70px, min(7vw, 11vh), 100px); --tabs-h: 64px; }
+  :root { --cw: clamp(76px, min(8vw, 12.5vh), 108px); --tw: clamp(70px, min(8.2vw, 13.2vh), 122px); --tabs-h: 64px; }
   body { font-size: 15.5px; }
   .app { grid-template-columns: 84px 1fr; grid-template-rows: 1fr; }
   .tabs { grid-row: 1; grid-column: 1; flex-direction: column; border-top: 0; border-right: 1px solid var(--line); padding: 10px 0; justify-content: flex-start; gap: 4px; }
@@ -417,23 +423,24 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .game-side .side-sec { padding: 12px 14px; border-bottom: 1px solid var(--line); }
   .game-side .side-sec.fill { flex: 1; min-height: 0; overflow-y: auto; }
   .game-side h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; }
-  .trick .slot.s0 { top: calc(var(--tw) * .82); } .trick .slot.s2 { top: calc(var(--tw) * -.82); }
-  .trick .slot.s1 { left: calc(var(--tw) * -1.06); } .trick .slot.s3 { left: calc(var(--tw) * 1.06); }
-  .table { --ow: clamp(32px, min(3.6vw, 5.6vh), 48px); --wc: clamp(24px, min(2.5vw, 4vh), 32px); --wstep: 5px; --pw: clamp(30px, min(3vw, 4.6vh), 40px); --pstep: 11px; }
+  .trick { --tdx: calc(var(--tw) * 1.06); --tdy: calc(var(--tw) * .82); }
+  .table { --ow: clamp(32px, min(3.6vw, 5.6vh), 48px); --wc: clamp(24px, min(2.5vw, 4vh), 32px); --wstep: 5px; --pw: clamp(34px, min(3.2vw, 4.8vh), 42px); --pstep: 11px; }
   .seat { gap: 10px; }
   .seat.left .seat-front, .seat.right .seat-front { gap: 8px; }
   .seat.bottom { left: 22px; bottom: 14px; }
   .seat.bottom .seat-front { gap: 12px; }
-  .plate.tbl-plate { font-size: 14px; line-height: 22px; padding: 2px 10px; gap: 7px; }
-  .plate .cpu svg { width: 15px; height: 15px; }
-  .seat-name { max-width: 120px; } .seat-score { font-size: 16px; } .seat-sub { font-size: 13px; }
+  .plate.tbl-plate { font-size: 16px; line-height: 24px; padding: 2px 11px; gap: 7px; }
+  .plate .cpu svg { width: 16px; height: 16px; }
+  .seat-name { max-width: 130px; } .seat-score { font-size: 18px; } .seat-sub { font-size: 15px; }
   .wpts { display: block; }
   .seat.left .won-area, .seat.right .won-area { flex-direction: column; }
   .felt .panel-c.pad { top: 56%; max-height: calc(88% - 40px); } /* the score pad sits below Across's name and pile */  .strip { display: none; }
   .prompt { padding: 10px 18px; }
   .prompt .msg { font-size: 15px; }
   .hand-wrap { padding: 6px 18px 16px; }
-  .moon { bottom: 70px; font-size: 13.5px; }
+  .moon { right: 18px; bottom: 14px; font-size: 14px; }
+  .seat.left, .seat.right { top: 44%; }
+  .trick { --ty0: 57%; }
   .sheet-back { align-items: center; }
   .sheet { border-radius: 16px; max-width: 460px; }
   .page { padding: 24px 28px; }
@@ -450,8 +457,8 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .set-page { max-width: 1240px; }
   .set-page .cols { grid-template-columns: repeat(3, 1fr); align-items: start; }
 }
-@media (max-width: 360px) { :root { --tw: 56px; } .table { --ow: 19px; } .seat-name { max-width: 54px; } .trick .slot.s1 { left: -56px; } .trick .slot.s3 { left: 56px; } }
-@media (max-height: 640px) and (max-width: 899px) { :root { --cw: 50px; --tw: 48px; } .trick .slot.s0 { top: 38px; } .trick .slot.s2 { top: -38px; } .trick .slot.s1 { left: -50px; } .trick .slot.s3 { left: 50px; } }
+@media (max-width: 360px) { :root { --tw: 56px; } .table { --ow: 19px; } .seat-name { max-width: 54px; } }
+@media (max-height: 640px) and (max-width: 899px) { :root { --cw: 50px; --tw: 54px; } .seat.left, .seat.right { top: 24%; } .trick { --ty0: 63%; --tdy: calc(var(--tw) * .42); } }
 /* very narrow phones: the Spades score line must fit beside Hint and the menu */
 @media (max-width: 360px) { .bar { gap: 6px; padding-left: 8px; padding-right: 8px; } .bar .title { font-size: 14px; letter-spacing: -.01em; } }
 
@@ -459,7 +466,7 @@ svg.suit { width: 16px; height: 16px; flex: none; }
 /* Only ~390px of height: the tabs move to a rail on the left (as on a laptop), and every row is tightened
    so the table keeps its seats, the trick and your hand on one screen. */
 @media (max-width: 899px) and (max-height: 500px) {
-  :root { --cw: 44px; --tw: 44px; }
+  :root { --cw: 44px; --tw: 52px; }
   .app { grid-template-columns: calc(58px + env(safe-area-inset-left)) 1fr; grid-template-rows: 1fr; }
   .tabs { grid-row: 1; grid-column: 1; flex-direction: column; justify-content: center; border-top: 0; border-right: 1px solid var(--line); padding: 0 0 0 env(safe-area-inset-left); }
   .tab { flex: 1 1 0; height: auto; max-height: 66px; font-size: 10px; }
@@ -479,14 +486,14 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .hand { height: calc(var(--cw) * 1.4 + 18px); }
   .seat.top { flex-direction: row; gap: 8px; }
   .seat.top .ofan-wrap { margin-top: 0; }
-  .trick { top: 52%; }
-  .trick .slot.s0 { top: 24px; } .trick .slot.s2 { top: -24px; } .trick .slot.s1 { left: -54px; } .trick .slot.s3 { left: 54px; }
+  .trick { top: 55%; --tdy: 24px; --tdx: calc(var(--tw) + 8px); }
   .felt .panel-c { max-height: calc(100% - 8px); padding: 8px 10px; }
   .felt .panel-c h3 { margin-bottom: 4px; }
   .panel-c .dist { height: 30px; margin: 2px 0; }
   .bids { grid-template-columns: repeat(14, 1fr); gap: 3px; }
   .bids button { min-height: 34px; font-size: 13px; }
   .moon { bottom: 4px; }
+  .seat.left, .seat.right { top: 44%; }
   /* the hand-over pad sits beside the table instead of below it */
   .table.end { flex-direction: row; }
   .table.end .pad-slot { width: 290px; max-height: none; padding: 6px 8px 6px 0; }

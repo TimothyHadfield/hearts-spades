@@ -9,7 +9,7 @@
   let modP = null;
 
   function loadModule() {
-    if (!modP) modP = import(new URL("js/online.js?v=2026-10-20e", document.baseURI).href);
+    if (!modP) modP = import(new URL("js/online.js?v=2026-10-27a", document.baseURI).href);
     return modP;
   }
   const savedRoom = (kind) => { try { return JSON.parse(localStorage.getItem("online." + kind)); } catch (e) { return null; } };
