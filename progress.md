@@ -2,7 +2,7 @@
 
 ## START HERE
 Read order: this file → CLAUDE.md → docs/rules-check.md → docs/ideas.md → chat.md.
-Last updated: 2026-10-27 (visibility pass, builder agent).
+Last updated: 2026-10-27 (improvement pass: variants, Undo/Replay, kits; builder agent).
 
 ## Goal right now
 Hearts and Spades in one site. Play against measured computers, use study helpers, play online with friends, and keep score at a real table. Phase 1 and phase 2 of the games brief are both done.
@@ -19,7 +19,9 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 | Lab | Done: strength tables, run your own matches |
 | Online | Done via the shared `_online` layer (Firebase th-board-games, game IDs `hearts`/`spades`). Rooms with codes; empty seats played by computers |
 | Heavy maths | Runs in a Web Worker (js/worker.js through js/think.js); falls back to the page |
-| Tests | hearts 20, spades 22, odds 7, online 6, fx 9, layout ~148 (Playwright, WebKit + Chromium): all pass (2026-10-27) |
+| Tests | hearts 20, spades 22, odds 7, variants 14, online 6, fx 9, layout ~147–150 (count varies run to run; Playwright, WebKit + Chromium): all pass (2026-10-27). `node tools/pwa-check.mjs --engine chromium` 18/18 |
+| Improvement pass (2026-10-27) | Done, live at 74703b9. Hearts 3/4/5 players (start panel), Black Maria + Spot Hearts (Settings "Point cards"); Spades Whiz/Mirror/Suicide (Settings "Bidding"); Undo (card or bid), Replay hand (same deal), trick-by-trick review; My stats + Daily game (`_profile` 1.0.1, separate `profile:hearts` / `profile:spades`); guided first Hearts hand + rules sheets (`_coach`); home-screen install + offline (`_pwa` 1.1.0); laptop New game panel scaled up (zoom 1.25 / 1.45) |
+| Computer ladder (whole games, 2026-10-27) | Spades: Medium beats Easy 87.5%, Hard beats Medium 90.2%. Hearts 4p (2 v 2 seats): Medium 98.3% vs Easy, Hard 71.5% vs Medium; 3p: Medium 90.7% / Hard 75% (fair 33%); 5p: Medium 92% / Hard 64.2% (fair 40%). `tools/sim-hearts-games.js` |
 | Visibility pass | Done 2026-10-27: trick 64→75 px phone, 48→54 SE, 44→52 landscape, 88→105 laptop, 99→118 at 1440; side seats raised (27% phone, 24% SE) so the trick never covers names/bid lines; your trick card on top so all 4 corner indexes show; moon/make-bid chip moved to felt's bottom-right; seat lines 12.5 px phone / 15 px laptop; Hearts point cards 24 px phone. Shots + audit: scratchpad `vis/hearts-spades/` (before/, after/, audit.md) |
 | Edge-case pass | Done 2026-10-20: 58 weird scenarios listed, about 49 run (online ones not), 10 failed, all fixed (table below) |
 | Sound & effects | Done 2026-10-20: `js/fx.js` (byte copy of `_fx/fx.js`, never edit) + `js/game-fx.js` (this site's event→sound map). Settings → "Sound & effects". Map below |
@@ -78,7 +80,11 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - **OneDrive locks files**: python http.server on the OneDrive folder gives random 404s for JS files. For testing, serve a copy outside OneDrive (the scratchpad `hs-site/` on port 18474).
 - **Chrome-engine phone-view needs 127.0.0.1**, not localhost (it tries IPv6 first).
 - Headless WebKit on Windows is slow (renders take 80–340 ms against about 22 ms in Chrome). It's the test environment, not the site. Use JS `el.click()` in Playwright scripts, since the stability waits time out.
-- Cache version must be bumped in 5 places (see CLAUDE.md). Now `20261027a`.
+- Cache version must be bumped in 5 places (see CLAUDE.md), and in two spellings: `index.html` uses `20261027f` (also pwa.js `data-version`), store/think/worker/online-ui use `2026-10-27f`. A sed on only one spelling left index.html stale once.
+- Shared kit copies (never edit, re-copy; all `-text` in .gitattributes): js/profile.js + css/profile.css, js/coach.js + css/coach.css, sw.js + js/pwa.js, js/fx.js, css/table.css + js/kit/table.js. This game's parts: js/profile-hs.js, js/coach-hs.js.
+- Hearts/Spades UI state saved per game: `tricks`, `handStart` (game before the deal + deck, for Replay), `undo`, `helped`, `daily`, `done`, `tutorial`. `S.done` stops a game being recorded twice; quitting (menu New game, Daily, tutorial) records an unfinished game as a loss.
+- Shell heredocs drop backslashes in regexes (`/\s+/` became `/s+/` once). Edit regexes with the Edit tool.
+- `tools/pwa-check.mjs` fails "offline cold open" in WebKit for Hold'em too (kit/harness issue); Chromium passes all 18.
 - Trick layout lives in CSS vars on `.trick`: `--tw` card width, `--tdx`/`--tdy` side/vertical offsets, `--ty0` vertical position; per-size overrides in the 360 / SE (max-height 640) / laptop / landscape blocks. `tests/layout.test.mjs` guards it (trick never covers seat parts, every corner index on top, chip clear of indexes); it needs Playwright from `~/.claude/tools`. `sed -i` on these files is blocked by the guard; use a small node replace.
 - Phone (<900 px) end of hand: the pad renders in `.pad-slot` below the felt (beside it in landscape), not in the felt; laptop keeps it on the felt. A matchMedia listener re-renders on crossing 900 px.
 - Landscape phone = `@media (max-width:899px) and (max-height:500px)`: tabs become a left rail.
@@ -102,6 +108,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Blind-nil swap order follows Pagat (nil bidder gives 2 first, partner gives 2 back); the Help text was corrected to match (2026-10-20).
 - Hearts pass: passed cards wait face down in front of each passer, then slide as backs to the receiver; your received cards flip up when they land.
 - Spades won tricks alternate crosswise (every other trick turned 90°).
+- Improvement pass (2026-10-27, Tim didn't pick): 5-player seats "Far left"/"Far right" (FL/FR in tight spots); 3/5 players pass left, right, keep; Black Maria keeps the moon rule (43); Spot Hearts keeps the target at 100; online stays 4-player standard; Daily = Hearts to 50 / Spades to 200 vs Medium, no Undo or Replay; ratings Hearts 1200/1900/2060, Spades 1200/1540/1930 from measured win rates; Undo button sits in the prompt row, Replay in the hand summary; Spades Cutthroat and 2-player not built.
 - Visibility (2026-10-27, Tim didn't pick): side seats sit high; your trick card overlaps Across's (yours on top); moon/make-bid chip in the felt's bottom-right corner; on phone the side seats' point cards sit beside their tricks (row, not column).
 
 ## NOT verified
@@ -111,6 +118,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Sounds never heard by a person (headless has no audio); loudness balance and iPhone silent switch untested. Online sound path reasoned (same render/observe path as local), not run with 2 browsers.
 - Edge pass: online scenarios (two people passing at once, disconnect mid-pass, P1–P3, P6, S8) not run. Pass slide and waiting pass piles checked in WebKit at 393 only; online "my passed cards wait face down" path reasoned, not run.
 - Visibility pass (2026-10-27): no real iPhone; online table not shot; Hearts point cards beside won piles still small (24 px phone, totals shown as "♥ N"); at SE the corner chip can sit near your trick card (test checks it never covers an index).
+- Improvement pass: real iPhone install/offline not tried; WebKit offline cold open fails in the kit's own check (same for Hold'em); the "replayed last hand records the game" fix is reasoned, not run; the guided Hearts hand was shot at step 1 only (later steps not walked through); Back pressed within ~30 ms of opening Rules/My stats from the game menu could close the new panel (timing race, not seen).
 - Design pass checked at 393x659 and 1440x900 only; 1280x720 laptop and iPhone SE heights not screenshotted (sizes are clamps by vh/vw, reasoned to fit).
 
 ## Rejected / parked

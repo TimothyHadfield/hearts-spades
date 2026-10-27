@@ -1,5 +1,11 @@
 # Hearts & Spades — chat log
 
+## 2026-10-27 — improvement pass (builder agent)
+- **Asked:** per-game brief: fix listed problems; check the computer ladder; rivals' variants and player counts; Undo + replay/review; `_coach`, `_profile`, `_pwa` kits; laptop setup panel lost in the felt; "Pass 3 cards left" printed over the deck.
+- **Built (5 pushes, 7bf225b → 74703b9):** Hearts 3/5 players, Black Maria, Spot Hearts; Spades Whiz/Mirror/Suicide; deck fallback; Undo, Replay, trick review; My stats, Daily, guided first hand, rules sheets, install/offline; laptop panel zoom; review fixes (FL/FR initials, blind nil in Mirror/Suicide, replay-final-hand record).
+- **Verified:** node suites + layout all pass; variants test failed 12/13 on old code; blind-nil test failed on old engine; scripted WebKit runs for Undo/Replay/review/profile/daily/rules/Back (0 errors); pwa-check Chromium 18/18; phone + laptop shots; one reviewer sub-agent.
+- **Open:** see NOT verified; Tim's calls listed under Decisions.
+
 ## 2026-10-27 — visibility pass (builder agent)
 - **Asked:** Tim: cards/board too small to see what's going on; fill the screen, make dense areas readable.
 - **Audit:** trick cards covered seat names/bid lines at 320 and 393; your trick card's index hidden under Across's; trick 64 px phone / 88 px laptop in a mostly empty felt; seat lines 11 px; point cards 18 px. 13-card hand and pass selection were already fine.

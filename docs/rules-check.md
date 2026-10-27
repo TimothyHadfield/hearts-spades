@@ -33,8 +33,11 @@ deliberately broken engine before it passed.
 | J♦ −10 | variation | variation (Omnibus) | Settings switch | "jack of diamonds variant…" |
 | Game ends when someone reaches 100; lowest wins | yes | yes | yes; Settings: 50 | "game ends at the target…" |
 | Tie for lowest at the end | play on until one is lowest | not stated | play on | same test |
-| 3 players: remove 2♦ (17 each) | yes | yes | scorekeeper note | — |
-| 5 players: remove 2♦ and 2♣; 3♣ leads | yes | remove 2♣ only | Pagat (scorekeeper note) | — |
+| 3 players: remove 2♦ (17 each) | yes | yes | yes vs computers (start panel "3 players"); offline only | variants: "3 players…" |
+| 5 players: remove 2♦ and 2♣ (10 each); 3♣ leads | yes | remove 2♣ only | Pagat; offline only | variants: "5 players…" |
+| 3 or 5 players pass left, right, keep (no "across") | yes | — | yes | variants: "pass cycles…" |
+| Black Maria: Q♠ 13, K♠ 10, A♠ 7, hearts 1 (43) | yes (Pagat Black Maria) | — | Settings "Point cards" | variants: "Black Maria…" |
+| Spot Hearts: hearts at face value (A 14), Q♠ 25 (129) | yes (Pagat Spot Hearts) | — | Settings "Point cards"; moon = all 129 | variants: "Spot Hearts…" |
 
 ## Spades
 
@@ -57,9 +60,14 @@ deliberately broken engine before it passed.
 | Game to 500; both over → higher wins; tie plays on | yes | yes | yes; Settings 200 / 300 | "game end: both teams past 500…" |
 | Lose at −200 / −500 | variation | — | Settings "Lose at" | "lose-at variant…" |
 
+| Whiz: bid your number of spades, or nil | yes (Pagat variant) | — | Settings "Bidding" | variants: "Spades Whiz…" |
+| Mirror: bid exactly your number of spades (no blind nil) | yes (Pagat variant) | — | Settings "Bidding" | variants: "Spades Mirror…", "blind nil follows…" |
+| Suicide: one partner bids nil, the other 4+ | yes (Pagat variant) | — | Settings "Bidding" | variants: "Spades Suicide…", "blind nil follows…" |
+
 Not built (listed by Pagat as regional variants): 10-for-200 bids, Boston (13 tricks = 200 or 500),
-a 4-trick team minimum, the joker decks, 2- and 3-player Spades.
+a 4-trick team minimum, the joker decks, 2- and 3-player Spades, Cutthroat (3 players, no partners).
+Online rooms stay 4-player standard Hearts (net-games passes only the known option keys).
 
 ## Status
-All rows above with a test name pass: `node tests/hearts.test.js` (20), `node tests/spades.test.js` (21),
-`node tests/odds.test.js` (7), `node tests/online.test.mjs` (6), run 2026-10-19.
+All rows above with a test name pass: `node tests/hearts.test.js` (20), `node tests/spades.test.js` (22),
+`node tests/odds.test.js` (7), `node tests/variants.test.js` (14), `node tests/online.test.mjs` (6), run 2026-10-27.
