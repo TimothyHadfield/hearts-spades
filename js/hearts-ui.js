@@ -186,6 +186,7 @@
 
   function onHandDone() {
     const g = S.game;
+    if (g.over) recordGame();     // also after a replayed last hand (that hand's numbers were already counted)
     if (S.recorded === g.handNo) return;
     S.recorded = g.handNo;
     const rec = Store.data.record.hearts;
@@ -195,7 +196,6 @@
     if (Store.data.study.hearts.length > 400) Store.data.study.hearts.shift();
     if (g.over) { rec.played++; if (g.winners.includes(ME)) rec.won++; }
     persist();
-    if (g.over) recordGame();
   }
 
   /** Points lost for your card, measured from the position before you played it. */

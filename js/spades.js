@@ -69,6 +69,10 @@
   /** May `seat` bid blind nil right now? */
   function blindNilAllowed(game, seat) {
     if (!game.opts.blindNil || !game.opts.nil) return false;
+    // Mirror bids are fixed by your spades; Suicide allows nil only when partner hasn't bid it.
+    const bidding = game.opts.bidding || "standard";
+    if (bidding === "mirror") return false;
+    if (bidding === "suicide" && game.hand && !allowedBids(game, seat).includes(0)) return false;
     const t = team(seat);
     return game.scores[1 - t] - game.scores[t] >= (game.opts.blindNilBehind || 0);
   }

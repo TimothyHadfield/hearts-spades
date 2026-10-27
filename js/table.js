@@ -322,7 +322,7 @@
     return out;
   }
   // "Left" -> "L", "Far left" -> "FL" (5 players), an online name -> its first letter
-  const initials = (nm) => String(nm).split(/s+/).filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+  const initials = (nm) => String(nm).split(/\s+/).filter(Boolean).map((w) => w[0]).join("").toUpperCase().slice(0, 2);
   function stripHTML(td, names, me, np) {
     let out = `<div class="strip" data-act="tracker" role="button" aria-label="Cards left in each suit">`;
     for (const t of td) {

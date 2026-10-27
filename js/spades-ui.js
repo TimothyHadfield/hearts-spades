@@ -182,6 +182,7 @@
 
   function onHandDone() {
     const g = S.game;
+    if (g.over) recordGame();     // also after a replayed last hand (that hand's numbers were already counted)
     if (S.recorded === g.handNo) return;
     S.recorded = g.handNo;
     const rec = Store.data.record.spades;
@@ -191,7 +192,6 @@
     if (Store.data.study.spades.length > 400) Store.data.study.spades.shift();
     if (g.over) { rec.played++; if (g.winner === US) rec.won++; }
     persist();
-    if (g.over) recordGame();
   }
 
   const key = (h) => h.trickNo * 10 + h.trick.length + ":" + h.hands[ME].length;

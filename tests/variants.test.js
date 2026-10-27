@@ -160,6 +160,22 @@ test("Spades Suicide: one partner bids nil, the other bids 4 or more", () => {
   ok(!b.includes(0) && b.every((x) => x >= 4), "partner of a nil bidder must bid 4+");
 });
 
+test("Spades blind nil follows the bidding variant (none in Mirror; in Suicide not after partner's nil)", () => {
+  const opts = (bidding) => ({ bidding, blindNil: true, blindNilBehind: 0 });
+  const m = S.newGame(opts("mirror")); S.deal(m, C.makeRng(6));
+  eq(S.blindNilAllowed(m, m.hand.bidTurn), false, "Mirror: your bid is your spades, so no blind nil");
+  throws(() => S.submitBid(m, m.hand.bidTurn, 0, true));
+  const g = S.newGame(opts("suicide")); S.deal(g, C.makeRng(7));
+  const first = g.hand.bidTurn;
+  eq(S.blindNilAllowed(g, first), true, "Suicide: the first of a team may go blind nil");
+  S.submitBid(g, first, 0, false);
+  S.submitBid(g, (first + 1) % 4, 4, false);
+  eq(S.blindNilAllowed(g, (first + 2) % 4), false, "Suicide: partner already bid nil");
+  throws(() => S.submitBid(g, (first + 2) % 4, 0, true));
+  const wz = S.newGame(opts("whiz")); S.deal(wz, C.makeRng(8));
+  eq(S.blindNilAllowed(wz, wz.hand.bidTurn), true, "Whiz allows nil, so blind nil too");
+});
+
 test("Spades variants: computers always make an allowed bid and the hand plays out", () => {
   const rnd = C.makeRng(11);
   for (const bidding of ["whiz", "mirror", "suicide"]) {
