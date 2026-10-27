@@ -2,7 +2,7 @@
 
 ## START HERE
 Read order: this file → CLAUDE.md → docs/rules-check.md → docs/ideas.md → chat.md.
-Last updated: 2026-10-20 (edge-case pass, builder agent).
+Last updated: 2026-10-27 (visibility pass, builder agent).
 
 ## Goal right now
 Hearts and Spades in one site. Play against measured computers, use study helpers, play online with friends, and keep score at a real table. Phase 1 and phase 2 of the games brief are both done.
@@ -19,7 +19,8 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 | Lab | Done: strength tables, run your own matches |
 | Online | Done via the shared `_online` layer (Firebase th-board-games, game IDs `hearts`/`spades`). Rooms with codes; empty seats played by computers |
 | Heavy maths | Runs in a Web Worker (js/worker.js through js/think.js); falls back to the page |
-| Tests | hearts 20, spades 22, odds 7, online 6, fx 9: all pass (2026-10-20 edge pass) |
+| Tests | hearts 20, spades 22, odds 7, online 6, fx 9, layout ~148 (Playwright, WebKit + Chromium): all pass (2026-10-27) |
+| Visibility pass | Done 2026-10-27: trick 64→75 px phone, 48→54 SE, 44→52 landscape, 88→105 laptop, 99→118 at 1440; side seats raised (27% phone, 24% SE) so the trick never covers names/bid lines; your trick card on top so all 4 corner indexes show; moon/make-bid chip moved to felt's bottom-right; seat lines 12.5 px phone / 15 px laptop; Hearts point cards 24 px phone. Shots + audit: scratchpad `vis/hearts-spades/` (before/, after/, audit.md) |
 | Edge-case pass | Done 2026-10-20: 58 weird scenarios listed, about 49 run (online ones not), 10 failed, all fixed (table below) |
 | Sound & effects | Done 2026-10-20: `js/fx.js` (byte copy of `_fx/fx.js`, never edit) + `js/game-fx.js` (this site's event→sound map). Settings → "Sound & effects". Map below |
 | Real-table look | Done 2026-10-20: green felt (shared kit `_table` copied to `css/table.css` + `js/kit/table.js`, never edit). Opponents hold fans of card backs turned to face them; played cards land crooked in a cross; won tricks sit face down and staggered by each seat, Hearts point cards face up beside them; paper score pad; squared deck on the setup screen that thins as it deals; 3-D flip for received/looked-at cards. Research in scratchpad `table/hearts-spades/real.md`, shots `before/` + `after/` |
@@ -37,6 +38,8 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 - "could you also make sure that each of the games also have a look to them so that the game (either board or card layout) looks almost identical to how the board or card layout looks like in real life, so it's easy to understand if you've already played it before, and also so it feels more like you're actually playing in real life rather than you're playing it online. Even things like how youre cards or other things are laid out infront of you, make it look like they are actual cards laid out similar to how it looks like in real life. Make the decks look like actual decks. Make the board have the same design as it does in real life with the same layouts. It should look kind of like you're looking through a camera that is connected to a user's glasses that is playing in real life (not actually, but the layout and style of everything should be similar)." (2026-10-20)
 
 - "I've noticed the games often have good user interfaces but could be improved especially when a scenario happens that the game might've not really thought about or whatnot. Could you focus on making each game perfect especially in scenarios that the game doesn't expect or are a little weird." (2026-10-20)
+
+- "for a lot of the games the cards or board layout is too small to easily see what's going on. Some games just need small design imporvements like filling the screen with the board view and fitting the cards and other things in the empty space, some have severe errors like TTR. Fix this so the view of what's happening and where everything is is very clear. Consider parts of the board that are dense in what's happening and if the user can reasonably see it." (2026-10-26)
 
 ## Edge-case scenarios (2026-10-20)
 List and harness: scratchpad `edge/hearts-spades/` (scenarios.md, rules.js, ui.mjs, ui2.mjs, pass.mjs, shots.mjs; WebKit at 393x659, 320x568, 659x393, 1280x800, 1920x1080).
@@ -75,7 +78,8 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - **OneDrive locks files**: python http.server on the OneDrive folder gives random 404s for JS files. For testing, serve a copy outside OneDrive (the scratchpad `hs-site/` on port 18474).
 - **Chrome-engine phone-view needs 127.0.0.1**, not localhost (it tries IPv6 first).
 - Headless WebKit on Windows is slow (renders take 80–340 ms against about 22 ms in Chrome). It's the test environment, not the site. Use JS `el.click()` in Playwright scripts, since the stability waits time out.
-- Cache version must be bumped in 5 places (see CLAUDE.md). Now `20261020e`. `sed -i` on these files is blocked by the guard; use a small node replace.
+- Cache version must be bumped in 5 places (see CLAUDE.md). Now `20261027a`.
+- Trick layout lives in CSS vars on `.trick`: `--tw` card width, `--tdx`/`--tdy` side/vertical offsets, `--ty0` vertical position; per-size overrides in the 360 / SE (max-height 640) / laptop / landscape blocks. `tests/layout.test.mjs` guards it (trick never covers seat parts, every corner index on top, chip clear of indexes); it needs Playwright from `~/.claude/tools`. `sed -i` on these files is blocked by the guard; use a small node replace.
 - Phone (<900 px) end of hand: the pad renders in `.pad-slot` below the felt (beside it in landscape), not in the felt; laptop keeps it on the felt. A matchMedia listener re-renders on crossing 900 px.
 - Landscape phone = `@media (max-width:899px) and (max-height:500px)`: tabs become a left rail.
 - `.gitattributes` marks the kit/fx copies `-text` so they stay byte-identical.
@@ -98,6 +102,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Blind-nil swap order follows Pagat (nil bidder gives 2 first, partner gives 2 back); the Help text was corrected to match (2026-10-20).
 - Hearts pass: passed cards wait face down in front of each passer, then slide as backs to the receiver; your received cards flip up when they land.
 - Spades won tricks alternate crosswise (every other trick turned 90°).
+- Visibility (2026-10-27, Tim didn't pick): side seats sit high; your trick card overlaps Across's (yours on top); moon/make-bid chip in the felt's bottom-right corner; on phone the side seats' point cards sit beside their tricks (row, not column).
 
 ## NOT verified
 - On a real iPhone (only WebKit headless at 393 px). Real-device speed of Hard/hint is reasoned to be fine, not measured.
@@ -105,6 +110,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Online reconnect after a phone sleeps for a long time.
 - Sounds never heard by a person (headless has no audio); loudness balance and iPhone silent switch untested. Online sound path reasoned (same render/observe path as local), not run with 2 browsers.
 - Edge pass: online scenarios (two people passing at once, disconnect mid-pass, P1–P3, P6, S8) not run. Pass slide and waiting pass piles checked in WebKit at 393 only; online "my passed cards wait face down" path reasoned, not run.
+- Visibility pass (2026-10-27): no real iPhone; online table not shot; Hearts point cards beside won piles still small (24 px phone, totals shown as "♥ N"); at SE the corner chip can sit near your trick card (test checks it never covers an index).
 - Design pass checked at 393x659 and 1440x900 only; 1280x720 laptop and iPhone SE heights not screenshotted (sizes are clamps by vh/vw, reasoned to fit).
 
 ## Rejected / parked

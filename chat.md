@@ -1,5 +1,12 @@
 # Hearts & Spades — chat log
 
+## 2026-10-27 — visibility pass (builder agent)
+- **Asked:** Tim: cards/board too small to see what's going on; fill the screen, make dense areas readable.
+- **Audit:** trick cards covered seat names/bid lines at 320 and 393; your trick card's index hidden under Across's; trick 64 px phone / 88 px laptop in a mostly empty felt; seat lines 11 px; point cards 18 px. 13-card hand and pass selection were already fine.
+- **Built:** bigger trick (75 phone, 105 laptop), side seats raised, slot offsets as `--tdx/--tdy/--ty0`, chip to felt corner, larger seat text and point cards. Cache 20261027a.
+- **Verified:** new tests/layout.test.mjs failed 49/148 on the old build, passes 148/148 (WebKit x several, Chromium once); existing suites green; 65 after shots at 5 sizes, 0 overflow; one reviewer sub-agent, its findings fixed (Across overlap, SE void-note wrap) or listed as NOT verified.
+- **Open:** real iPhone; online table.
+
 ## 2026-10-19 — first build + phase 2
 - **Asked:** Hearts and Spades in one site, modelled on Cribbage: computers with measured strength, cards-left tracker, moon warning, bid advisor, real-table scorekeeper. Phase 2 added: exact rules plus variants, online play via the shared `_online` module, an ideas brainstorm with the good ones built, polished art, and a QA pass.
 - **Built:**
