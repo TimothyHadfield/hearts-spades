@@ -21,7 +21,7 @@
 
   function persist() {
     if (S && S.online) return;   // online games live in the room, not in this browser
-    Store.data.games.hearts = S ? { game: S.game, level: S.level, handStudy: S.handStudy, fresh: [...S.fresh], recorded: S.recorded } : null;
+    Store.data.games.hearts = S ? { game: S.game, level: S.level, handStudy: S.handStudy, fresh: [...S.fresh], recorded: S.recorded, tricks: S.tricks, handStart: S.handStart, undo: S.undo, helped: S.helped, daily: S.daily, done: S.done } : null;
     Store.save();
   }
 
@@ -32,6 +32,8 @@
     S.handStudy = saved.handStudy || [];
     S.fresh = new Set(saved.fresh || []);
     S.recorded = saved.recorded ?? -1;
+    S.tricks = saved.tricks || []; S.handStart = saved.handStart || null; S.undo = saved.undo || null;
+    S.helped = !!saved.helped; S.daily = saved.daily || null; S.done = !!saved.done;
     // Closed mid-sweep of the last trick: the hand ended but was never counted.
     if (S.game.hand.phase === "done") onHandDone();
   }
@@ -41,6 +43,7 @@
     return {
       game, level, sel: new Set(), fresh: new Set(), freshTrick: new Set(), showTrick: null, collecting: false,
       hint: null, lastLoss: null, handStudy: [], moon: null, dealAnim: false, busy: false, recorded: -1, keyProbs: null, thinking: false, cpuPending: null,
+      tricks: [], handStart: null, undo: null, helped: false, daily: null, done: false,
     };
   }
 
@@ -53,9 +56,13 @@
     dealNext();
   }
 
-  function dealNext() {
-    const g = H.apply(S.game, { type: "deal", deck: C.shuffle(C.deck()) });
+  function dealNext(again) {
+    const deck = again ? again.deck : S.daily ? C.shuffle(C.deck(), C.makeRng(S.daily.seed + S.game.handNo * 7919)) : C.shuffle(C.deck());
+    if (again) { S.game = again.game; S.helped = true; }
+    S.handStart = { game: S.game, deck };
+    const g = H.apply(S.game, { type: "deal", deck });
     S.game = g;
+    S.tricks = []; S.undo = null;
     S.sel.clear(); S.fresh.clear(); S.freshTrick.clear(); S.hint = null; S.lastLoss = null; S.handStudy = []; S.moon = null; S.keyProbs = null;
     S.dealAnim = true;
     // Computers choose their passes straight away; you pick yours.
@@ -88,6 +95,7 @@
 
   function doPlay(seat, card) {
     const before = S.game;
+    if (seat === ME && !S.online && !S.daily) S.undo = { game: before, study: S.handStudy.length, tricks: S.tricks.length };
     S.game = H.apply(before, { type: "play", seat, card });
     S.freshTrick.add(card);
     S.sel.clear();
@@ -95,6 +103,8 @@
     const h = S.game.hand;
     persist();
     if (h.trick.length === 0) {
+      S.tricks.push(h.lastTrick);
+      if (h.phase === "done") S.undo = null;
       // Trick complete: show all four, then sweep them to the winner.
       const my = gen;
       S.showTrick = h.lastTrick;
@@ -112,6 +122,19 @@
         }, 380);
       }, cfg().speed === "fast" ? 550 : 950);
     } else step();
+  }
+
+  /** Take back your last card (and everything the computers played after it). The game becomes unrated. */
+  function undo() {
+    if (!S || !S.undo || S.online || S.daily) return;
+    const u = S.undo;
+    gen++;
+    S.game = u.game; S.handStudy.length = Math.min(S.handStudy.length, u.study); S.tricks.length = u.tricks;
+    S.undo = null; S.helped = true;
+    S.sel.clear(); S.hint = null; S.lastLoss = null; S.showTrick = null; S.collecting = false; S.busy = false; S.cpuPending = null; S.thinking = false; S.moon = null;
+    persist();
+    updateMoon();
+    step();
   }
 
   function onHandDone() {
@@ -169,6 +192,7 @@
   function hint() {
     const h = S && S.game.hand;
     if (!h) return;
+    if (!S.online) { S.helped = true; persist(); }
     if (h.phase === "pass" && !h.passes[ME]) {
       S.hint = { pass: new Set(AI.choosePass(h.hands[ME], "hard")) };
       return render();
@@ -291,6 +315,7 @@
         msg = `<span>${S.busy ? (S.showTrick ? NAMES[T.rel(S.showTrick.winner, ME, h.hands.length)] + " take" + (S.showTrick.winner === ME ? "" : "s") + " it" + (S.showTrick.points ? ` · ${S.showTrick.points} pt${S.showTrick.points > 1 ? "s" : ""}` : "") : "") : NAMES[T.rel(h.turn, ME, h.hands.length)] + " is playing…"}</span>` + lossLine();
       }
       if (S.hint && S.hint.list && h.turn === ME) btn = T.help("ev");
+      if (S.undo && !S.online && !S.daily) btn = `<button class="btn sm" data-act="undo">Undo</button>` + btn;
     } else {
       msg = `<b>${g.over ? "Game over" : "Hand over"}</b>` + lossLine();
     }
@@ -323,7 +348,8 @@
     let note = r.moonBy >= 0 ? `<div class="warm" style="margin-bottom:6px;font-weight:700">${NAMES[T.rel(r.moonBy, ME, N)]} shot the moon!</div>` : "";
     return `<div class="panel-c pad"><h3>${T.esc(title)}</h3>${note}<table class="mini"><tr><th></th><th>Took</th><th>Scored</th><th>Total</th></tr>${rows}</table>` +
       (cfg().study && S.handStudy.length ? `<div class="muted" style="margin-top:8px">Your points lost this hand: <b style="color:${lost < 1 ? "var(--good)" : lost < 4 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(1)}</b> ${T.help("lost")}</div>` : "") +
-      `<div class="row" style="margin-top:12px"><button class="btn" data-act="reveal">All hands</button><span style="flex:1"></span>` +
+      `<div class="row" style="margin-top:12px"><button class="btn" data-act="reveal">All hands</button>` +
+      (S.handStart && !S.online && !S.daily ? `<button class="btn" data-act="replay" title="Play this hand again with the same cards">Replay</button>` : "") + `<span style="flex:1"></span>` +
       (g.over ? `<button class="btn primary" data-act="new">New game</button>` : `<button class="btn primary" data-act="next">Next hand</button>`) + `</div></div>`;
   }
 
@@ -439,6 +465,8 @@
       if (act === "next") return S.online ? send({ type: "next" }) : dealNext();
       if (act === "new") { if (S.online) return root.OnlineUI.leave("hearts"); S = null; persist(); return render(); }
       if (act === "reveal") return reveal();
+      if (act === "undo") return undo();
+      if (act === "replay") { if (S.handStart && !S.online && !S.daily) { gen++; dealNext(S.handStart); } return; }
       if (act === "tracker") return trackerSheet();
     }
     if (cardEl && S) return tapCard(+cardEl.dataset.card);
@@ -511,7 +539,22 @@
         h.start[s].map((c) => `<div style="width:30px">${Art.cardHTML(c)}</div>`).join("") + `</div>`;
       if (h.passes[s]) out += `<div style="font-size:12px;color:var(--muted);margin-top:2px">Passed ${h.passes[s].map(C.name).join(" ")}</div>`;
     }
+    out += trickReviewHTML(h);
     T.openSheet(out);
+  }
+
+  /** Every trick of the hand in order: who led, each card, who took it and for how many points. */
+  function trickReviewHTML(h) {
+    const list = S.tricks || [];
+    if (!list.length) return "";
+    const n = h.hands.length;
+    let out = `<h3 style="margin-top:14px">Trick by trick</h3><div class="trick-review">`;
+    list.forEach((t, i) => {
+      out += `<div class="tr-row"><span class="tr-n">${i + 1}</span><span class="tr-cards">` +
+        t.cards.map((x) => `<span class="tr-c${x.seat === t.winner ? " win" : ""}" title="${T.esc(NAMES[T.rel(x.seat, ME, n)])}"><i>${T.esc(shortName(NAMES[T.rel(x.seat, ME, n)]))}</i>${Art.cardHTML(x.card)}</span>`).join("") +
+        `</span><span class="tr-w">${T.esc(NAMES[T.rel(t.winner, ME, n)])}${t.points ? ` · <b>${t.points}</b>` : ""}</span></div>`;
+    });
+    return out + `</div>`;
   }
 
   // ----------------------------------------------------------------- online

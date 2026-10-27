@@ -18,18 +18,21 @@
 
   function persist() {
     if (S && S.online) return;   // online games live in the room
-    Store.data.games.spades = S ? { game: S.game, level: S.level, handStudy: S.handStudy, looked: S.looked, recorded: S.recorded, bidLoss: S.bidLoss } : null;
+    Store.data.games.spades = S ? { game: S.game, level: S.level, handStudy: S.handStudy, looked: S.looked, recorded: S.recorded, bidLoss: S.bidLoss, tricks: S.tricks, handStart: S.handStart, undo: S.undo, helped: S.helped, daily: S.daily, done: S.done } : null;
     Store.save();
   }
   function blank(game, level) {
     return { game, level, sel: new Set(), freshTrick: new Set(), showTrick: null, collecting: false, hint: null, lastLoss: null,
-      handStudy: [], dealAnim: false, busy: false, recorded: -1, advice: null, adviceP: null, bidPick: null, looked: true, make: null, bidLoss: null, thinking: false, cpuPending: null };
+      handStudy: [], dealAnim: false, busy: false, recorded: -1, advice: null, adviceP: null, bidPick: null, looked: true, make: null, bidLoss: null, thinking: false, cpuPending: null,
+      tricks: [], handStart: null, undo: null, helped: false, daily: null, done: false };
   }
   function restore() {
     const sv = Store.data.games.spades;
     if (!sv || !sv.game || !sv.game.hand) return;
     S = blank(sv.game, sv.level);
     S.handStudy = sv.handStudy || []; S.looked = sv.looked !== false; S.recorded = sv.recorded ?? -1; S.bidLoss = sv.bidLoss || null;
+    S.tricks = sv.tricks || []; S.handStart = sv.handStart || null; S.undo = sv.undo || null;
+    S.helped = !!sv.helped; S.daily = sv.daily || null; S.done = !!sv.done;
     // Closed mid-sweep of the last trick: the hand ended but was never counted.
     if (S.game.hand.phase === "done") onHandDone();
   }
@@ -51,8 +54,12 @@
     S = blank(S_.apply(null, { type: "new", opts: optsFromCfg() }), cfg().level);
     dealNext();
   }
-  function dealNext() {
-    S.game = S_.apply(S.game, { type: "deal", deck: C.shuffle(C.deck()) });
+  function dealNext(again) {
+    const deck = again ? again.deck : S.daily ? C.shuffle(C.deck(), C.makeRng(S.daily.seed + S.game.handNo * 7919)) : C.shuffle(C.deck());
+    if (again) { S.game = again.game; S.helped = true; }
+    S.handStart = { game: S.game, deck };
+    S.game = S_.apply(S.game, { type: "deal", deck });
+    S.tricks = []; S.undo = null;
     Object.assign(S, { sel: new Set(), freshTrick: new Set(), hint: null, lastLoss: null, handStudy: [], advice: null, adviceP: null, bidPick: null, make: null, bidLoss: null, thinking: false, cpuPending: null });
     S.looked = !S_.blindNilAllowed(S.game, ME);
     S.dealAnim = S.looked;
@@ -91,6 +98,7 @@
 
   function doPlay(seat, card) {
     const before = S.game;
+    if (seat === ME) keepUndo(before);
     S.game = S_.apply(before, { type: "play", seat, card });
     S.freshTrick.add(card);
     S.sel.clear();
@@ -98,6 +106,8 @@
     const h = S.game.hand;
     persist();
     if (h.trick.length === 0) {
+      S.tricks.push(h.lastTrick);
+      if (h.phase === "done") S.undo = null;
       const my = gen;
       S.showTrick = h.lastTrick; S.busy = true; render();
       setTimeout(() => {
@@ -111,6 +121,23 @@
         }, 380);
       }, Store.data.hearts.speed === "fast" ? 550 : 950);
     } else step();
+  }
+
+  /** Undo goes back to just before your last card or bid (offline, never in the Daily). */
+  function keepUndo(before) {
+    if (!S.online && !S.daily) S.undo = { game: before, study: S.handStudy.length, tricks: S.tricks.length, bidLoss: S.bidLoss };
+  }
+  function undo() {
+    if (!S || !S.undo || S.online || S.daily) return;
+    const u = S.undo;
+    gen++;
+    S.game = u.game; S.handStudy.length = Math.min(S.handStudy.length, u.study); S.tricks.length = u.tricks; S.bidLoss = u.bidLoss || null;
+    S.undo = null; S.helped = true;
+    S.sel.clear(); S.hint = null; S.lastLoss = null; S.showTrick = null; S.collecting = false; S.busy = false; S.cpuPending = null; S.thinking = false;
+    if (S.game.hand.phase === "bid") { S.bidPick = null; S.adviceP = S.advice ? S.adviceP : null; }
+    persist();
+    updateMake();
+    step();
   }
 
   function onHandDone() {
@@ -175,6 +202,7 @@
 
   function hint() {
     const g = S.game, h = g.hand;
+    if (!S.online) { S.helped = true; persist(); }
     if (h.phase === "bid" && h.bidTurn === ME) { computeAdvice().then((A) => { if (A && S) { S.bidPick = nearAllowed(A.best.bid); render(); } }); return; }
     if (h.phase === "exchange") { S.sel = new Set(AI.chooseExchange(h.hands[ME], h.exchange.nilSeat === ME)); return render(); }
     if (h.phase !== "play" || h.turn !== ME || S.busy || S.thinking) return;
@@ -281,10 +309,12 @@
     } else if (myAct === "play") {
       msg = `<b>${h.trick.length ? "Your turn" : "Your lead"}</b>` + (S.sel.size ? `<span class="small">Tap again to play</span>` : lossLine());
       if (S.hint && S.hint.list) btn = T.help("ev");
+      if (S.undo && !S.online && !S.daily) btn = `<button class="btn sm" data-act="undo">Undo</button>` + btn;
     } else if (h.phase === "done") {
       msg = `<b>${g.over ? "Game over" : "Hand over"}</b>` + lossLine();
     } else {
       const a = actor();
+      if (S.undo && !S.online && !S.daily) btn = `<button class="btn sm" data-act="undo">Undo</button>`;
       msg = (S.busy && S.showTrick ? `${T.esc(nm(S.showTrick.winner))} take${S.showTrick.winner === ME ? "" : "s"} it` : a ? `${T.esc(nm(a.seat))} is ${a.kind === "bid" ? "bidding" : a.kind === "exchange" ? "passing cards" : "playing"}…` : "") + lossLine();
     }
     return `<div class="msg">${msg}</div>${btn}`;
@@ -343,7 +373,8 @@
     const title = g.over ? (g.winner === US ? "You win!" : "They win") : "Hand " + g.handNo;
     return `<div class="panel-c pad"><h3>${title}</h3>${team(US)}${team(THEM)}` +
       (cfg().study ? `<div class="muted">Points lost this hand: <b style="color:${lost < 5 ? "var(--good)" : lost < 20 ? "var(--accent-warm)" : "var(--bad)"}">${lost.toFixed(0)}</b> ${T.help("lost")}</div>` : "") +
-      `<div class="row" style="margin-top:12px"><span style="flex:1"></span>${g.over ? `<button class="btn primary" data-act="new">New game</button>` : `<button class="btn primary" data-act="next">Next hand</button>`}</div></div>`;
+      `<div class="row" style="margin-top:12px">${S.tricks && S.tricks.length && !S.online ? `<button class="btn" data-act="review">Tricks</button>` : ""}` +
+      `${S.handStart && !S.online && !S.daily ? `<button class="btn" data-act="replay" title="Play this hand again with the same cards">Replay</button>` : ""}<span style="flex:1"></span>${g.over ? `<button class="btn primary" data-act="new">New game</button>` : `<button class="btn primary" data-act="next">Next hand</button>`}</div></div>`;
   }
 
   function sideHTML(td) {
@@ -407,6 +438,9 @@
       if (act === "blind") return submitBid(0, true);
       if (act === "look") { S.looked = true; S.dealAnim = true; S.flipAll = true; persist(); return render(); }
       if (act === "give") return give();
+      if (act === "undo") return undo();
+      if (act === "review") return review();
+      if (act === "replay") { if (S.handStart && !S.online && !S.daily) { gen++; dealNext(S.handStart); } return; }
       if (act === "next") return S.online ? send({ type: "next" }) : dealNext();
       if (act === "new") { if (S.online) return root.OnlineUI.leave("spades"); S = null; persist(); return render(); }
       if (act === "tracker") return T.openSheet(`<h3>Cards left ${T.help("tracker")}</h3>` + T.trackerDetailHTML(T.trackerData(S.game.hand, ME), NAMES, ME, null));
@@ -422,6 +456,7 @@
       if (blind) { S.looked = true; S.dealAnim = true; S.flipAll = true; }
       send({ type: "bid", bid, blind });
     } else {
+      if (!blind) keepUndo(g);
       try { S.game = S_.apply(g, { type: "bid", seat: ME, bid, blind }); }
       catch (err) { T.toast(err.message); return; }
     }
@@ -463,6 +498,18 @@
       return send({ type: "play", card });
     }
     S.sel = new Set([card]); render();
+  }
+
+  /** Every trick of the hand in order: each card, who took it. */
+  function review() {
+    const list = S.tricks || [];
+    let out = `<h3>Trick by trick</h3><div class="trick-review">`;
+    list.forEach((t, i) => {
+      out += `<div class="tr-row"><span class="tr-n">${i + 1}</span><span class="tr-cards">` +
+        t.cards.map((x) => `<span class="tr-c${x.seat === t.winner ? " win" : ""}"><i>${T.esc(nm(x.seat).slice(0, 7))}</i>${Art.cardHTML(x.card)}</span>`).join("") +
+        `</span><span class="tr-w">${T.esc(nm(t.winner))}</span></div>`;
+    });
+    T.openSheet(out + `</div>`);
   }
 
   function menu() {
