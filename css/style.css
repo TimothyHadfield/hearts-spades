@@ -557,3 +557,7 @@ html.fx-fast .trick.collect .slot .pc { transition-duration: .21s; }
 .start .start-row .btn svg { width: 22px; height: 22px; flex: none; border-radius: 50%; }
 .set-page .learn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .set-page .learn-row .btn { flex: 1 1 auto; }
+
+/* Laptop: the New game panel grows with the table instead of sitting small in the middle of the felt */
+@media (min-width: 900px) and (min-height: 660px) { .felt > .panel-c.start { zoom: 1.25; } }
+@media (min-width: 1200px) and (min-height: 820px) { .felt > .panel-c.start { zoom: 1.45; } }
