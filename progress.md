@@ -77,6 +77,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 | Any button | `tap` (Button clicks) | — |
 
 ## Traps
+- **Kits re-copied 2026-10-27 (kitfix):** game-coach 1.1.0 (rules tabs wrap instead of scrolling sideways; a note beside a tall target keeps title + 2 lines + buttons) and game-pwa 1.3.0 (`data-extra` on the pwa.js tag caches files loaded later by script). Copies stay byte-identical to `../_coach` / `../_pwa`. `tests/layout.test.mjs` fails 1 random "trick N: trick clear of seats" check on the iPhone SE size, before and after the re-copy (flaky, not the kits).
 - **online.js cache stamp (2026-10-27):** every import of `js/online.js` uses `?v=a3d0418b`, the `_online` content stamp. After a re-copy: put the new stamp from `node ../_online/tools/stamp.mjs` there, bump the importing file's `?v=` (and pwa.js `data-version`), then `node ../_online/tools/stamp.mjs --check .` must say OK.
 - **OneDrive locks files**: python http.server on the OneDrive folder gives random 404s for JS files. For testing, serve a copy outside OneDrive (the scratchpad `hs-site/` on port 18474).
 - **Chrome-engine phone-view needs 127.0.0.1**, not localhost (it tries IPv6 first).
