@@ -23,7 +23,17 @@
   const DEFAULTS = {
     target: 500, nil: true, blindNil: false, blindNilBehind: 100, bagLimit: 10, bagPenalty: 100,
     nilCounts: false, spadesLead: "broken", loseAt: 0, firstLead: "left", bidding: "standard",
+    jokers: false, deucesHigh: false, minTeam: 0,
   };
+  /** The 52 cards in play. Jokers (Pagat): the 2♣ and 2♥ come out, Little and Big Joker go in as the
+   *  top two spades. Deuces high: the 2♠ ranks above the A♠ (card 54 stands in for card 26). */
+  function deckFor(opts) {
+    const o = opts || {};
+    let d = C.deck();
+    if (o.jokers) d = d.filter((c) => c !== 0 && c !== 39).concat([C.LITTLE_JOKER, C.BIG_JOKER]);
+    if (o.deucesHigh) d = d.filter((c) => c !== 26).concat([C.HIGH_DEUCE]);
+    return d;
+  }
   const team = (s) => s % 2;
 
   function newGame(opts) {
@@ -42,7 +52,7 @@
   }
 
   function deal(game, rnd, cards) {
-    const d = cards ? cards.slice() : C.shuffle(C.deck(), rnd);
+    const d = cards ? cards.slice() : C.shuffle(deckFor(game.opts), rnd);
     const hands = [0, 1, 2, 3].map((i) => C.sortCards(d.slice(i * 13, i * 13 + 13)));
     const first = (game.dealer + 1) % 4;
     game.hand = {
@@ -57,7 +67,8 @@
       tricks: [0, 0, 0, 0],
       spadesBroken: false,
       spadesLead: game.opts.spadesLead,
-      played: new Array(52).fill(0),
+      deck: C.sortCards(d),
+      played: new Array(55).fill(0),
       plays: [],
       voids: [[false, false, false, false], [false, false, false, false], [false, false, false, false], [false, false, false, false]],
       lastTrick: null,
@@ -73,6 +84,9 @@
     const bidding = game.opts.bidding || "standard";
     if (bidding === "mirror") return false;
     if (bidding === "suicide" && game.hand && !allowedBids(game, seat).includes(0)) return false;
+    // Minimum team bid: the second partner can't go nil when the first bid under the minimum.
+    const mate = game.hand ? game.hand.bids[(seat + 2) % 4] : null;
+    if (game.opts.minTeam && bidding === "standard" && mate !== null && mate !== undefined && mate < game.opts.minTeam) return false;
     const t = team(seat);
     return game.scores[1 - t] - game.scores[t] >= (game.opts.blindNilBehind || 0);
   }
@@ -90,7 +104,15 @@
       if (pb === null || pb === undefined) return all.filter((b) => b === 0 || b >= 4);
       return pb === 0 ? all.filter((b) => b >= 4) : [0];
     }
-    return o.nil ? all : all.filter((b) => b > 0);
+    let out = o.nil ? all : all.filter((b) => b > 0);
+    // Minimum team bid (Pagat: "each team must bid at least 4"): the second partner to bid makes up the rest.
+    const pb = h ? h.bids[(seat + 2) % 4] : null;
+    if (o.minTeam && pb !== null && pb !== undefined) {
+      const lim = o.minTeam;
+      out = out.filter((b) => b + pb >= lim);
+      if (!out.length) out = [lim];
+    }
+    return out;
   }
 
   function submitBid(game, seat, bid, blind) {
@@ -284,6 +306,7 @@
         if (g.over) throw new Error("game over");
         if (g.hand && g.hand.phase !== "done") throw new Error("hand in progress");
         if (!Array.isArray(action.deck) || action.deck.length !== 52 || new Set(action.deck).size !== 52) throw new Error("bad deck");
+        { const ok = new Set(deckFor(g.opts)); if (!action.deck.every((c) => ok.has(c))) throw new Error("deck doesn't match the rules"); }
         deal(g, null, action.deck);
         return g;
       case "bid": submitBid(g, action.seat, action.bid, action.blind); return g;
@@ -318,7 +341,7 @@
   }
 
   const api = {
-    DEFAULTS, team, newGame, deal, submitBid, allowedBids, submitExchange, blindNilAllowed, startPlay,
+    DEFAULTS, deckFor, team, newGame, deal, submitBid, allowedBids, submitExchange, blindNilAllowed, startPlay,
     legal, trickWinner, playRaw, play, scoreTeam, finishHand, gameEnd, apply, view, toAct,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

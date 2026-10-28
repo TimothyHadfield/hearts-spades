@@ -3,7 +3,7 @@
 (function (root) {
   "use strict";
   const KEY = "heartsSpades:v1";
-  const VERSION = "2026-10-27f";
+  const VERSION = "2026-10-28a";
 
   const DEFAULTS = {
     tab: "hearts",
@@ -16,6 +16,7 @@
       level: "medium",
       target: 500, nil: true, blindNil: false, blindNilBehind: 100, bagLimit: 10, bagPenalty: 100,
       nilCounts: false, spadesLead: "broken", loseAt: 0, firstLead: "left", bidding: "standard",
+      jokers: false, deucesHigh: false, minTeam: 0,
       advisor: true, study: true, tracker: true,
     },
     games: { hearts: null, spades: null },     // saved games in progress

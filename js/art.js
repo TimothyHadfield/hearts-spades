@@ -40,7 +40,31 @@
     return `<path d="M92 122c4-22 22-34 40-30 10 2 18 10 22 20-14-4-26 0-34 10z" fill="${c}" opacity=".9"/><path d="M148 100c8-12 13-18 24-20-5 7-10 14-18 23z" fill="#d9a531"/>`;
   }
 
+  // Jokers (Spades house rule): "JOKER" down the corners like a real deck; the Big Joker is in colour,
+  // the Little Joker in black, so the two tell apart in a fan.
+  function joker(card) {
+    const big = card === C.BIG_JOKER, c = big ? RED : BLACK;
+    const corner = "JOKER".split("").map((ch, i) => `<text x="34" y="${48 + i * 29}" text-anchor="middle" font-size="30" font-weight="800" font-family="${SERIF}">${ch}</text>`).join("");
+    const gold = "#d9a531", tint = big ? "#f6ddd5" : "#dfe4f0";
+    const hat = `<path d="M82 206Q72 140 44 116Q98 132 108 206Z" fill="${c}"/>` +
+      `<path d="M104 206Q112 130 125 86Q138 130 146 206Z" fill="${big ? "#1d2a4a" : "#6b7080"}"/>` +
+      `<path d="M142 206Q152 132 206 116Q178 140 168 206Z" fill="${c}"/>` +
+      `<circle cx="44" cy="116" r="10" fill="${gold}"/><circle cx="125" cy="86" r="10" fill="${gold}"/><circle cx="206" cy="116" r="10" fill="${gold}"/>` +
+      `<rect x="76" y="202" width="98" height="20" rx="8" fill="${gold}"/>` +
+      `<circle cx="125" cy="252" r="32" fill="${tint}" stroke="${c}" stroke-width="3"/>` +
+      `<circle cx="113" cy="246" r="4" fill="${c}"/><circle cx="137" cy="246" r="4" fill="${c}"/>` +
+      `<path d="M108 262Q125 278 142 262" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round"/>`;
+    return `<svg viewBox="0 0 250 350" fill="${c}" aria-hidden="true">` +
+      `<rect x="1.5" y="1.5" width="247" height="347" rx="17" fill="#f6f2e8" stroke="#d4ccbb" stroke-width="3"/>` +
+      corner + `<g transform="rotate(180 125 175)">${corner}</g>` +
+      `<text x="125" y="58" text-anchor="middle" font-size="26" font-weight="800" font-family="${SERIF}">${big ? "BIG" : "LITTLE"}</text>` +
+      hat + `</svg>`;
+  }
+
   function face(card) {
+    if (C.isJoker && C.isJoker(card)) return joker(card);
+    // The high 2♠ (deuces-high house rule) looks like any 2♠.
+    if (card === C.HIGH_DEUCE) card = C.card(C.SPADES, 0);
     const s = C.suit(card), r = C.rank(card), c = col(s);
     let mid = "";
     if (r <= 8) {

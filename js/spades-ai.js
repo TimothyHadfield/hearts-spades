@@ -24,10 +24,21 @@
   const lo = (arr) => minBy(arr, power);
 
   // ------------------------------------------------------------------ bidding
+  // House rules put up to three spades above the ace (Big Joker 15, Little Joker 14, high 2♠ 13).
+  // For counting, rank spades by place from the top, so the top spade in play always counts as an "ace".
+  function spadeRanker(opts) {
+    const o = opts || {};
+    const highs = [];
+    if (o.jokers) highs.push(15, 14);
+    if (o.deucesHigh) highs.push(13);
+    return (r) => (r >= 13 ? 12 - highs.indexOf(r) : r - highs.length);
+  }
+
   /** Rough count of tricks a hand should take (used by Medium and as Hard's starting point). */
-  function countTricks(hand) {
+  function countTricks(hand, opts) {
+    const sr = spadeRanker(opts);
     const bySuit = [[], [], [], []];
-    for (const c of hand) bySuit[suit(c)].push(rank(c));
+    for (const c of hand) bySuit[suit(c)].push(suit(c) === SPADES ? sr(rank(c)) : rank(c));
     for (const s of bySuit) s.sort((a, b) => b - a);
     let t = 0;
     for (let s = 0; s < 4; s++) {
@@ -57,28 +68,29 @@
   }
 
   /** Is this hand a sensible nil? */
-  function nilLooksGood(hand) {
+  function nilLooksGood(hand, opts) {
+    const sr = spadeRanker(opts);
     const sp = hand.filter((c) => suit(c) === SPADES);
-    if (sp.some((c) => rank(c) >= 9) || sp.length > 3) return false;
+    if (sp.some((c) => sr(rank(c)) >= 9) || sp.length > 3) return false;
     for (let s = 0; s < 4; s++) {
-      const r = hand.filter((c) => suit(c) === s).map(rank);
+      const r = hand.filter((c) => suit(c) === s).map((c) => (s === SPADES ? sr(rank(c)) : rank(c)));
       if (r.includes(12) || (r.includes(11) && r.length < 4)) return false;
       if (r.length && Math.min(...r) >= 7 && r.length <= 2) return false;
     }
-    return countTricks(hand) < 1.6;
+    return countTricks(hand, opts) < 1.6;
   }
 
   function mediumBid(game, seat) {
     const h = game.hand, hand = h.hands[seat];
-    if (game.opts.nil && nilLooksGood(hand) && h.bids[(seat + 2) % 4] !== 0) return 0;
-    let b = Math.round(countTricks(hand));
+    if (game.opts.nil && nilLooksGood(hand, game.opts) && h.bids[(seat + 2) % 4] !== 0) return 0;
+    let b = Math.round(countTricks(hand, game.opts));
     if (h.bids[(seat + 2) % 4] === 0) b += 1;         // partner is nil: we carry the team
     b = Math.max(game.opts.nil ? 1 : 1, Math.min(13, b));
     return b;
   }
 
   function easyBid(game, seat, rnd) {
-    let b = Math.round(countTricks(game.hand.hands[seat]) + (rnd() * 2 - 1));
+    let b = Math.round(countTricks(game.hand.hands[seat], game.opts) + (rnd() * 2 - 1));
     return Math.max(1, Math.min(13, b));
   }
 
@@ -94,11 +106,14 @@
   }
   const beats = (c, w) => (suit(c) === suit(w) ? rank(c) > rank(w) : suit(c) === SPADES);
 
+  // The cards in this hand's deck (house rules swap some cards for jokers / a high 2♠).
+  const deckOf = (h) => h.deck || C.deck();
+
   /** Highest card still unplayed in a suit, excluding `exceptHand` cards? */
   function isBoss(h, c, hand) {
-    for (let r = rank(c) + 1; r < 13; r++) {
-      const x = C.card(suit(c), r);
-      if (!h.played[x] && !hand.includes(x)) return false;
+    const s = suit(c), r = rank(c);
+    for (const x of deckOf(h)) {
+      if (suit(x) === s && rank(x) > r && !h.played[x] && !hand.includes(x)) return false;
     }
     return true;
   }
@@ -201,7 +216,7 @@
       if (seat === partner) for (const c of x.back) if (!h.played[c]) { fixed[x.nilSeat].push(c); known.add(c); }
     }
     const unseen = [];
-    for (let c = 0; c < 52; c++) if (!h.played[c] && !mine.has(c) && !known.has(c)) unseen.push(c);
+    for (const c of deckOf(h)) if (!h.played[c] && !mine.has(c) && !known.has(c)) unseen.push(c);
     const need = [0, 1, 2, 3].map((s) => (s === seat ? 0 : h.hands[s].length));
     const hands = C.dealUnseen(unseen, need, fixed, h.voids, rnd);
     hands[seat] = h.hands[seat].slice();
@@ -211,7 +226,7 @@
   function simState(h, hands) {
     return {
       hands, bids: h.bids.slice(), blind: h.blind.slice(), trick: h.trick.slice(), leader: h.leader, turn: h.turn,
-      trickNo: h.trickNo, tricks: h.tricks.slice(), spadesBroken: h.spadesBroken, spadesLead: h.spadesLead,
+      trickNo: h.trickNo, tricks: h.tricks.slice(), spadesBroken: h.spadesBroken, spadesLead: h.spadesLead, deck: h.deck,
       firstLead2c: h.firstLead2c, played: h.played.slice(), plays: null, voids: h.voids.map((v) => v.slice()), phase: "play",
     };
   }
@@ -257,8 +272,8 @@
     const mine = h.hands[seat];
     const unseen = [];
     const mset = new Set(mine);
-    for (let c = 0; c < 52; c++) if (!mset.has(c)) unseen.push(c);
-    const base = Math.max(1, Math.round(countTricks(mine)));
+    for (const c of deckOf(h)) if (!mset.has(c)) unseen.push(c);
+    const base = Math.max(1, Math.round(countTricks(mine, game.opts)));
     const dist = new Array(14).fill(0);
     const partner = (seat + 2) % 4;
     const runs = [];      // finished play-outs with our rough bid
@@ -301,7 +316,7 @@
     const st = {
       hands: hands.map((x) => x.slice()), bids, blind: h.blind.slice(), trick: [], trickNo: 0,
       tricks: [0, 0, 0, 0], spadesBroken: false, spadesLead: game.opts.spadesLead, firstLead2c: game.opts.firstLead === "2c",
-      played: new Array(52).fill(0), plays: null, voids: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], phase: "play",
+      deck: h.deck, played: new Array(55).fill(0), plays: null, voids: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], phase: "play",
     };
     let lead = (h.dealer + 1) % 4;
     if (st.firstLead2c) for (let s = 0; s < 4; s++) if (st.hands[s].includes(0)) lead = s;

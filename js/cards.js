@@ -2,20 +2,26 @@
  * A card is an integer 0-51: suit = floor(c / 13), rank = c % 13.
  * Suits in display order: 0 clubs, 1 diamonds, 2 spades, 3 hearts (black, red, black, red).
  * Ranks: 0 = "2" ... 8 = "10", 9 = J, 10 = Q, 11 = K, 12 = A.
+ * Spades house rules add three extra spades above the ace (Pagat): 54 = the 2♠ when deuces are
+ * high (rank 13), 52 = Little Joker (rank 14), 53 = Big Joker (rank 15). Hearts never sees them.
  * Works in the browser (window.Cards) and in Node (require). */
 (function (root) {
   "use strict";
   const CLUBS = 0, DIAMONDS = 1, SPADES = 2, HEARTS = 3;
   const SUIT_SYMBOLS = ["♣", "♦", "♠", "♥"];
   const SUIT_NAMES = ["clubs", "diamonds", "spades", "hearts"];
-  const RANK_NAMES = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+  const RANK_NAMES = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2", "LJ", "BJ"];
+  const LITTLE_JOKER = 52, BIG_JOKER = 53, HIGH_DEUCE = 54;
+  const XRANK = [14, 15, 13];
 
-  const suit = (c) => (c / 13) | 0;
-  const rank = (c) => c % 13;
+  const suit = (c) => (c < 52 ? (c / 13) | 0 : SPADES);
+  const rank = (c) => (c < 52 ? c % 13 : XRANK[c - 52]);
   const card = (s, r) => s * 13 + r;
   const isRed = (c) => suit(c) === DIAMONDS || suit(c) === HEARTS;
-  const name = (c) => RANK_NAMES[rank(c)] + SUIT_SYMBOLS[suit(c)];
-  const longName = (c) => RANK_NAMES[rank(c)] + " of " + SUIT_NAMES[suit(c)];
+  const JOKER_NAMES = { 52: "Little Joker", 53: "Big Joker" };
+  const isJoker = (c) => c === LITTLE_JOKER || c === BIG_JOKER;
+  const name = (c) => (isJoker(c) ? JOKER_NAMES[c] : RANK_NAMES[rank(c)] + SUIT_SYMBOLS[suit(c)]);
+  const longName = (c) => (isJoker(c) ? JOKER_NAMES[c] : RANK_NAMES[rank(c)] + " of " + SUIT_NAMES[suit(c)]);
 
   function deck() { const d = []; for (let i = 0; i < 52; i++) d.push(i); return d; }
 
@@ -39,7 +45,9 @@
     return arr;
   }
 
-  const sortCards = (h) => h.slice().sort((a, b) => a - b);
+  // By suit, then rank: the extra high spades sort above the A♠ (same order as card numbers otherwise).
+  const sortKey = (c) => suit(c) * 16 + rank(c);
+  const sortCards = (h) => h.slice().sort((a, b) => sortKey(a) - sortKey(b));
 
   /**
    * Deal the unseen cards to the other seats at random, keeping what is known:
@@ -101,6 +109,7 @@
 
   const api = {
     CLUBS, DIAMONDS, SPADES, HEARTS, SUIT_SYMBOLS, SUIT_NAMES, RANK_NAMES,
+    LITTLE_JOKER, BIG_JOKER, HIGH_DEUCE, isJoker,
     suit, rank, card, isRed, name, longName, deck, makeRng, shuffle, sortCards, dealUnseen,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

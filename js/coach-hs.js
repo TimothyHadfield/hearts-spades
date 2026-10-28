@@ -27,6 +27,10 @@
     ];
   }
 
+  // Learn links (checked with YouTube's oEmbed on 2026-10-28: each returned its title). Open in a new tab.
+  const videos = (list) => `<ul class="vids">${list.map(([id, t, ch]) =>
+    `<li><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">${t}</a> <span class="muted">· ${ch} (YouTube)</span></li>`).join("")}</ul>`;
+
   const HEARTS = {
     title: "How to play Hearts",
     sections: [
@@ -43,7 +47,13 @@
         <li>With 3 or 5 players the pass goes left, right, then no pass.</li></ul>` },
       { id: "variants", short: "Variants", title: "Variants (Settings)", html: `<ul><li><b>Black Maria</b>: the K♠ is 10 and the A♠ 7 as well as the Q♠ 13 (43 points in all).</li>
         <li><b>Spot Hearts</b>: each heart is worth its number (A = 14) and the Q♠ is 25 (129 in all).</li>
-        <li>Moon: +26 to the others, −26 to you, or your choice. J♦ −10. The queen breaks hearts. Points on the first trick. Game to 50.</li></ul>` },
+        <li>Moon: +26 to the others, −26 to you, or your choice. J♦ −10. The queen breaks hearts. Points on the first trick. Game to 50, 75, 100 or 150.</li></ul>` },
+      { id: "videos", short: "Videos", title: "Videos", html: videos([
+        ["N9zm_oveszc", "How to play Hearts", "Riffle Shuffle & Roll"],
+        ["FFm3LiN8QqM", "Hearts for beginners", "Puzzling Games"],
+        ["y_ew08d_znA", "Walk-through with tips", "Play-In Games"],
+        ["SxS9KnwstRs", "Shooting the moon, a full hand", "Play-In Games"],
+      ]) },
     ],
   };
 
@@ -61,7 +71,14 @@
         <li><b>Blind nil</b> (optional): bid nil before you look, for ±200, usually only when 100 or more behind. You and your partner then swap 2 cards.</li></ul>` },
       { id: "variants", short: "Variants", title: "Bidding variants (Settings)", html: `<ul><li><b>Whiz</b>: bid exactly the number of spades you hold, or nil.</li>
         <li><b>Mirror</b>: bid exactly the number of spades you hold.</li>
-        <li><b>Suicide</b>: one partner must bid nil and the other at least 4.</li></ul>` },
+        <li><b>Suicide</b>: one partner must bid nil and the other at least 4.</li></ul>
+        <p>House rules: <b>Jokers</b> (the 2♣ and 2♥ come out; Big Joker and Little Joker become the top two spades), <b>2♠ high</b> (above the A♠), <b>team minimum 4</b>, spades led any time, 2♣ leads, no bag penalty, lose at −200, game to 200 or 300.</p>` },
+      { id: "videos", short: "Videos", title: "Videos", html: videos([
+        ["ca13SHejtDE", "How to play Spades in 10 minutes", "How Games Work"],
+        ["tZkOB2kABZU", "Rules and gameplay", "Spielregeln TV"],
+        ["RFXtM4LORes", "Rules, strategy and tips", "Play-In Games"],
+        ["FwoqgumJw1A", "Bidding strategy 101", "Trickster Cards"],
+      ]) },
     ],
   };
 

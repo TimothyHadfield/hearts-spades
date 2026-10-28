@@ -30,6 +30,10 @@
     nilCounts: ["Nil tricks", "Standard rule: tricks a nil bidder takes don't count toward the partner's bid; they are bags. Turn this on to let them count."],
     points: ["Point cards", "Standard: each heart 1, Q♠ 13 (26 a hand). Black Maria adds the A♠ (7) and K♠ (10) for 43. Spot Hearts scores each heart at its face value (J 11, Q 12, K 13, A 14) and the Q♠ 25, for 129. Shooting the moon means taking every point."],
     bidding: ["Bidding variants", "Whiz: bid your number of spades, or nil. Mirror: bid exactly your number of spades. Suicide: on each team one partner must bid nil and the other 4 or more. Standard lets you bid anything."],
+    jokers: ["Jokers", "A common house rule: the 2♣ and 2♥ come out and a Big Joker and Little Joker go in as the two highest spades (Big Joker beats everything). They count as spades for following suit and for breaking spades."],
+    deuces: ["Deuces high", "The 2♠ becomes the highest spade after any jokers: Big Joker, Little Joker, 2♠, A♠, K♠…"],
+    minTeam: ["Team minimum", "Each team must bid at least this many tricks together. The second partner to bid makes up the rest, so they can't bid nil (or blind nil) unless their partner already bid 4 or more."],
+    target: ["Game to", "The game ends when someone reaches this score; the lowest score wins. 100 is standard."],
     strength: ["How measured", "Each level played thousands of hands against three Medium players, swapping seats every hand. The number is the average points taken per hand: 6.5 is an even share and lower is better."],
   };
 
@@ -314,7 +318,9 @@
     const out = [];
     for (let s = 0; s < 4; s++) {
       const hidden = [];
-      for (let r = 12; r >= 0; r--) { const c = C.card(s, r); if (!h.played[c] && !mine.has(c)) hidden.push(c); }
+      // Spades house rules swap cards (jokers, a high 2♠): the hand lists its deck, high to low here.
+      const inSuit = h.deck ? h.deck.filter((c) => C.suit(c) === s).sort((a, b) => C.rank(b) - C.rank(a)) : Array.from({ length: 13 }, (_, i) => C.card(s, 12 - i));
+      for (const c of inSuit) if (!h.played[c] && !mine.has(c)) hidden.push(c);
       const np = h.hands.length;
       const voids = Array.from({ length: np - 1 }, (_, k) => (me + k + 1) % np).filter((seat) => h.voids[seat][s]);
       out.push({ suit: s, hidden, voids });

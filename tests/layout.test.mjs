@@ -88,6 +88,7 @@ const check = (name, ok, info) => { if (ok) pass++; else { fail++; console.log("
 
 const browser = await pw[process.env.ENGINE || "webkit"].launch({ headless: true });   // ENGINE=chromium for Chrome
 for (const [size, cfg] of Object.entries(SIZES)) {
+  if (process.env.ONLY && !process.env.ONLY.split(",").includes(size)) continue;   // e.g. ONLY=se
   for (const kind of ["hearts", "spades"]) {
     const ctx = await browser.newContext(cfg.ctx);
     await ctx.addInitScript(() => { try { localStorage.setItem("heartsSpades:v1", JSON.stringify({ hearts: { speed: "fast" }, spades: {} })); localStorage.setItem("fx:hearts-spades", JSON.stringify({ animations: false, sound: false })); } catch {} });

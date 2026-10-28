@@ -17,7 +17,7 @@
   let gen = 0;     // bumps on every new game / quit, cancels old timers
 
   const cfg = () => Store.data.hearts;
-  const delay = () => (cfg().speed === "fast" ? 260 : 620);
+  const delay = () => ({ fast: 260, slow: 1100 }[cfg().speed] || 620);
 
   function persist() {
     if (S && S.online) return;   // online games live in the room, not in this browser
@@ -123,7 +123,7 @@
           updateMoon();
           step();
         }, 380);
-      }, cfg().speed === "fast" ? 550 : 950);
+      }, { fast: 550, slow: 1500 }[cfg().speed] || 950);
     } else step();
   }
 
@@ -699,7 +699,7 @@
           updateMoon();
           render();
         }, 380);
-      }, cfg().speed === "fast" ? 550 : 950);
+      }, { fast: 550, slow: 1500 }[cfg().speed] || 950);
       return;
     }
     for (const t of h.trick) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);

@@ -10,7 +10,7 @@
   // [key, label, type, options, help]
   const SCHEMA = [
     ["hearts", "Hearts rules", [
-      ["target", "Game to", "seg", [[50, "50"], [100, "100"]]],
+      ["target", "Game to", "seg", [[50, "50"], [75, "75"], [100, "100"], [150, "150"]], "target"],
       ["points", "Point cards", "seg", [["standard", "Standard"], ["maria", "Black Maria"], ["spot", "Spot"]], "points"],
       ["passing", "Passing", "seg", [["cycle4", "L·R·A·Keep"], ["cycle3", "L·R·A"], ["left", "Left"], ["none", "None"]]],
       ["moon", "Moon", "seg", [["add", "+26 others"], ["subtract", "−26 me"], ["choice", "Choice"]], "moonChoice"],
@@ -29,6 +29,9 @@
       ["spadesLead", "Lead spades", "seg", [["broken", "Once broken"], ["any", "Any time"]]],
       ["firstLead", "First lead", "seg", [["left", "Left of dealer"], ["2c", "2♣"]]],
       ["loseAt", "Lose at", "seg", [[0, "Off"], [200, "−200"], [500, "−500"]]],
+      ["minTeam", "Team minimum", "seg", [[0, "Off"], [4, "4"]], "minTeam"],
+      ["jokers", "Jokers", "switch", null, "jokers"],
+      ["deucesHigh", "2♠ high", "switch", null, "deuces"],
     ]],
     ["helpers", "Study help", [
       ["hearts.tracker", "Hearts: cards left", "switch", null, "tracker"],
@@ -37,7 +40,7 @@
       ["spades.advisor", "Spades: bid advisor", "switch", null, "advisor"],
       ["spades.tracker", "Spades: cards left", "switch", null, "tracker"],
       ["spades.study", "Spades: points lost", "switch", null, "lost"],
-      ["hearts.speed", "Computer speed", "seg", [["normal", "Normal"], ["fast", "Fast"]]],
+      ["hearts.speed", "Computer speed", "seg", [["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]]],
     ]],
   ];
 

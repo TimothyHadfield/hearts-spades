@@ -13,7 +13,7 @@
   const nm = (s) => NAMES[T.rel(s, ME)];
 
   const cfg = () => Store.data.spades;
-  const delay = () => (Store.data.hearts.speed === "fast" ? 260 : 620);
+  const delay = () => ({ fast: 260, slow: 1100 }[Store.data.hearts.speed] || 620);
   const bidTxt = (h, s) => (h.bids[s] === null ? "…" : h.bids[s] === 0 ? (h.blind[s] ? "Blind nil" : "Nil") : "Bid " + h.bids[s]);
 
   function persist() {
@@ -40,7 +40,8 @@
   function optsFromCfg() {
     const c = cfg();
     return { target: c.target, nil: c.nil, blindNil: c.blindNil, blindNilBehind: c.blindNilBehind, bagLimit: c.bagLimit, bagPenalty: c.bagPenalty,
-      nilCounts: c.nilCounts, spadesLead: c.spadesLead, loseAt: c.loseAt, firstLead: c.firstLead, bidding: c.bidding };
+      nilCounts: c.nilCounts, spadesLead: c.spadesLead, loseAt: c.loseAt, firstLead: c.firstLead, bidding: c.bidding,
+      jokers: !!c.jokers, deucesHigh: !!c.deucesHigh, minTeam: c.minTeam || 0 };
   }
   /** The allowed bid nearest to b (bidding variants limit the bids). */
   function nearAllowed(b) {
@@ -56,7 +57,8 @@
     dealNext();
   }
   function dealNext(again) {
-    const deck = again ? again.deck : S.daily ? C.shuffle(C.deck(), C.makeRng(S.daily.seed + S.game.handNo * 7919)) : C.shuffle(C.deck());
+    const cards = S_.deckFor(S.game.opts);
+    const deck = again ? again.deck : S.daily ? C.shuffle(cards, C.makeRng(S.daily.seed + S.game.handNo * 7919)) : C.shuffle(cards);
     if (again) { S.game = again.game; S.helped = true; }
     S.handStart = { game: S.game, deck };
     S.game = S_.apply(S.game, { type: "deal", deck });
@@ -120,7 +122,7 @@
           if (h.phase === "done") onHandDone(); else updateMake();
           step();
         }, 380);
-      }, Store.data.hearts.speed === "fast" ? 550 : 950);
+      }, { fast: 550, slow: 1500 }[Store.data.hearts.speed] || 950);
     } else step();
   }
 
@@ -653,7 +655,7 @@
           if (S.game.hand.phase === "done") onHandDone(); else updateMake();
           render();
         }, 380);
-      }, Store.data.hearts.speed === "fast" ? 550 : 950);
+      }, { fast: 550, slow: 1500 }[Store.data.hearts.speed] || 950);
       return;
     }
     for (const t of h.trick) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);

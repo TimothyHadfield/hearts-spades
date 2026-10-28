@@ -561,3 +561,6 @@ html.fx-fast .trick.collect .slot .pc { transition-duration: .21s; }
 /* Laptop: the New game panel grows with the table instead of sitting small in the middle of the felt */
 @media (min-width: 900px) and (min-height: 660px) { .felt > .panel-c.start { zoom: 1.25; } }
 @media (min-width: 1200px) and (min-height: 820px) { .felt > .panel-c.start { zoom: 1.45; } }
+
+/* Rules sheet "Videos" links: dark ink on the paper sheet (the default link blue is faint there) */
+.coach-rules-body .vids a { color: #1d4f9e; font-weight: 600; }
