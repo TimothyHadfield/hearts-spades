@@ -181,16 +181,17 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 
 /* tricks won, face down and staggered so they can be counted; Hearts point cards face up beside them */
 .won-area { display: flex; align-items: center; gap: 6px; }
-.won { position: relative; flex: none; width: calc(var(--wc) + (var(--n) - 1) * var(--wstep)); height: calc(var(--wc) * 1.4); --card-w: var(--wc); }
+.won { position: relative; flex: none; --wst: min(var(--wstep), (var(--wmax, 9999px) - var(--wc)) / max(var(--n) - 1, 1)); width: calc(var(--wc) + (var(--n) - 1) * var(--wst)); height: calc(var(--wc) * 1.4); --card-w: var(--wc); }
 .won.empty { display: none; }
-.won > .tbl-card { position: absolute; top: 0; left: calc(var(--i) * var(--wstep)); box-shadow: 0 1px 1px rgba(0,0,0,.45); }
+.won > .tbl-card { position: absolute; top: 0; left: calc(var(--i) * var(--wst)); box-shadow: 0 1px 1px rgba(0,0,0,.45); }
 /* Spades: tricks squared crosswise on each other; the crossed cards stick out .2 card each side */
 .won.cross { margin: 0 calc(var(--wc) * .22); --wstep: calc(var(--wc) * .3); }
 /* Hearts pass: the 3 cards wait face down in front of whoever passed them */
 .passpile { position: relative; flex: none; --card-w: calc(var(--wc) * 1.15); width: calc(var(--wc) * 1.15 + 8px); height: calc(var(--wc) * 1.15 * 1.4 + 4px); }
 .passpile > .tbl-card { position: absolute; top: 0; left: calc(var(--i) * 4px); box-shadow: 0 1px 2px rgba(0,0,0,.45); }
-.wpts { display: none; position: relative; flex: none; width: calc(var(--pw) + (var(--n) - 1) * var(--pstep)); height: calc(var(--pw) * 1.4); }
-.wpts .wp { position: absolute; top: 0; left: calc(var(--i) * var(--pstep)); width: var(--pw); }
+/* --pmax caps how wide a seat's point-card fan may grow (the step shrinks to fit), so a long fan never reaches the trick */
+.wpts { display: none; position: relative; flex: none; --pst: min(var(--pstep), (var(--pmax, 9999px) - var(--pw)) / max(var(--n) - 1, 1)); width: calc(var(--pw) + (var(--n) - 1) * var(--pst)); height: calc(var(--pw) * 1.4); }
+.wpts .wp { position: absolute; top: 0; left: calc(var(--i) * var(--pst)); width: var(--pw); }
 .wpts .wp .pc { box-shadow: 0 1px 2px rgba(0,0,0,.45); }
 
 /* the deck in the middle while the cards go round */
@@ -342,6 +343,8 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .felt:has(.panel-c.pad) .seat.top, .felt:has(.panel-c.pad) .seat.bottom { visibility: hidden; }
   /* Hearts point cards stay face up beside each pile on a phone too, just smaller */
   .table .wpts { display: block; }
+  /* your won tricks and point cards squeeze together as they grow, so they never reach your trick card */
+  .seat.bottom .won { --wmax: 30px; } .seat.bottom .wpts { --pmax: 50px; }
   /* a side player's plate, line and piles (point cards beside the tricks) start at the top of
      their seat, above the trick */
   .seat.left .seat-front, .seat.right .seat-front { align-self: flex-start; padding-top: 8px; }
@@ -470,7 +473,7 @@ svg.suit { width: 16px; height: 16px; flex: none; }
   .set-page .cols { grid-template-columns: repeat(3, 1fr); align-items: start; }
 }
 @media (max-width: 360px) { :root { --tw: 56px; } .table { --ow: 19px; } .seat-name { max-width: 54px; } }
-@media (max-height: 640px) and (max-width: 899px) { :root { --cw: 50px; --tw: 54px; } .seat.left, .seat.right { top: 24%; } .trick { --ty0: 63%; --tdy: calc(var(--tw) * .42); } }
+@media (max-height: 640px) and (max-width: 899px) { :root { --cw: 50px; --tw: 54px; } .seat.left, .seat.right { top: 24%; } .trick { --ty0: 63%; --tdy: calc(var(--tw) * .42); } .seat.bottom .won { --wmax: 26px; } .seat.bottom .wpts { --pmax: 28px; } }
 /* very narrow phones: the Spades score line must fit beside Hint and the menu */
 @media (max-width: 360px) { .bar { gap: 6px; padding-left: 8px; padding-right: 8px; } .bar .title { font-size: 14px; letter-spacing: -.01em; } }
 
@@ -564,3 +567,10 @@ html.fx-fast .trick.collect .slot .pc { transition-duration: .21s; }
 
 /* Rules sheet "Videos" links: dark ink on the paper sheet (the default link blue is faint there) */
 .coach-rules-body .vids a { color: #1d4f9e; font-weight: 600; }
+
+/* iPhone SE width: a setting whose buttons don't fit beside its name drops below it, instead of the page scrolling sideways */
+@media (max-width: 360px) {
+  .set-row { flex-wrap: wrap; row-gap: 6px; }
+  .set-row .lab { flex: 1 0 auto; max-width: 100%; }
+  .set-row .seg { flex: 1 1 auto; max-width: 100%; }
+}

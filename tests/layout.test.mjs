@@ -50,6 +50,18 @@ const SETUP = (kind, upto) => `(() => { const U = ${kind === "hearts" ? "HeartsU
   if (U === HeartsUI) S.moon = { seat: 2, chance: 0.34 }; else S.make = { bid: 0.54, nil: [0, 0, 0, 0] };   // the corner chip
   U.render(); return g.hand.trickNo; })()`;
 
+const HEAVY = (kind, seed) => `(() => { const U = ${kind === "hearts" ? "HeartsUI" : "SpadesUI"}, E = ${kind === "hearts" ? "Hearts" : "Spades"}, S = U.state;
+  let g = E.apply(E.apply(null, { type: "new", opts: S.game.opts }), { type: "deal", deck: Cards.shuffle(Cards.deck(), Cards.makeRng(${seed})) });
+  for (let i = 0; i < 400 && g.hand.phase !== "done"; i++) { const h = g.hand;
+    if (h.phase === "pass") { for (let s=0;s<4;s++) if(!h.passes[s]) g = E.apply(g,{type:"pass",seat:s,cards:h.hands[s].slice(0,3)}); continue; }
+    if (h.phase === "bid") { g = E.apply(g,{type:"bid",seat:h.bidTurn,bid:3}); continue; }
+    if (h.phase !== "play") break;
+    if (h.trickNo >= 12 && h.trick.length === 0) break;
+    const L = E.legal(h,h.turn); g = E.apply(g,{type:"play",seat:h.turn,card:h.turn === 0 ? L[L.length-1] : L[0]}); }
+  S.game = g; S.cpuPending = null; S.busy = true; S.collecting = false; S.showTrick = g.hand.lastTrick;
+  if (U === HeartsUI) S.moon = { seat: 2, chance: 0.34 }; else S.make = { bid: 0.54, nil: [0, 0, 0, 0] };
+  U.render(); return g.hand.trickNo; })()`;
+
 // For the 13-card check: a fresh deal, nothing played.
 const MEASURE = `(() => {
   const v = document.querySelector(".view.active"), R = (e) => e.getBoundingClientRect();
@@ -119,6 +131,16 @@ for (const [size, cfg] of Object.entries(SIZES)) {
       check(`${id}: seat line >= ${cfg.sub}px`, m.sub >= cfg.sub, `sub ${m.sub}`);
       if (kind === "hearts" && m.pw != null) check(`${id}: point cards >= ${cfg.pw}px`, m.pw >= cfg.pw, `pw ${m.pw}`);
       check(`${id}: no page scroll`, !m.ox && !m.oy, JSON.stringify({ ox: m.ox, oy: m.oy }));
+    }
+    // Fixed deals where you win most tricks (you play your highest card, the others their lowest), to
+    // trick 12: your won pile and point cards are at their longest. This used to fail at random on the
+    // iPhone SE, when a random deal happened to give you many tricks (your trick card covered your points).
+    for (const seed of [7, 21, 40]) {
+      await page.evaluate(HEAVY(kind, seed));
+      await page.waitForTimeout(250);
+      const m = await page.evaluate(MEASURE);
+      check(`${size} ${kind} long piles (seed ${seed}): trick clear of seats, indexes on top`, !m.errs.length, m.errs.join("\n  "));
+      check(`${size} ${kind} long piles (seed ${seed}): no page scroll`, !m.ox && !m.oy, JSON.stringify({ ox: m.ox, oy: m.oy }));
     }
     check(`${size} ${kind}: no page errors`, !errs.length, errs.join(" | "));
     await ctx.close();

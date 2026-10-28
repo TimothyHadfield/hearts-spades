@@ -31,7 +31,7 @@ deliberately broken engine before it passed.
 | Moon: shooter −26 instead | variation | variation | Settings "Moon −26 me" | "moon: …" |
 | Moon: shooter's choice | variation | — | Settings "Choice" (takes −26 when +26 would lose them the game) | "moon 'choice' …" |
 | J♦ −10 | variation | variation (Omnibus) | Settings switch | "jack of diamonds variant…" |
-| Game ends when someone reaches 100; lowest wins | yes | yes | yes; Settings: 50 | "game ends at the target…" |
+| Game ends when someone reaches 100; lowest wins | yes | yes | yes; Settings: 50 / 75 / 150 | "game ends at the target…" |
 | Tie for lowest at the end | play on until one is lowest | not stated | play on | same test |
 | 3 players: remove 2♦ (17 each) | yes | yes | yes vs computers (start panel "3 players"); offline only | variants: "3 players…" |
 | 5 players: remove 2♦ and 2♣ (10 each); 3♣ leads | yes | remove 2♣ only | Pagat; offline only | variants: "5 players…" |
@@ -64,10 +64,19 @@ deliberately broken engine before it passed.
 | Mirror: bid exactly your number of spades (no blind nil) | yes (Pagat variant) | — | Settings "Bidding" | variants: "Spades Mirror…", "blind nil follows…" |
 | Suicide: one partner bids nil, the other 4+ | yes (Pagat variant) | — | Settings "Bidding" | variants: "Spades Suicide…", "blind nil follows…" |
 
+| Jokers: 2♣ and 2♥ out, Big Joker > Little Joker as top spades (count as spades) | yes (Barmore's rules; NYC drops 2♣/2♥ too) | — | Settings "Jokers", off | house: "jokers: …" (3 tests) |
+| Deuces high: 2♠ above the A♠ (below jokers) | yes (Barmore: BJ, LJ, 2♠, A♠) | — | Settings "2♠ high", off | house: "deuces high…" |
+| Team minimum 4: second partner makes up the rest; nil only over a partner's 4+ | yes ("some play") | — | Settings "Team minimum", off; standard bidding only | house: "minimum team bid…" (2 tests) |
+
+Cards 52 / 53 / 54 stand for Little Joker / Big Joker / the high 2♠ (ranks 14 / 15 / 13), so every
+"higher rank wins" comparison works unchanged; `Spades.deckFor(opts)` gives the 52 cards in play.
+
 Not built (listed by Pagat as regional variants): 10-for-200 bids, Boston (13 tricks = 200 or 500),
-a 4-trick team minimum, the joker decks, 2- and 3-player Spades, Cutthroat (3 players, no partners).
+NYC jokers with the 2♦ high, a 5-bag penalty (not on Pagat), 2- and 3-player Spades, Cutthroat (3 players, no partners).
+Online rooms stay standard (net-games passes only the known option keys, so jokers/2♠ high/team minimum stay offline).
 Online rooms stay 4-player standard Hearts (net-games passes only the known option keys).
 
 ## Status
 All rows above with a test name pass: `node tests/hearts.test.js` (20), `node tests/spades.test.js` (22),
-`node tests/odds.test.js` (7), `node tests/variants.test.js` (14), `node tests/online.test.mjs` (6), run 2026-10-27.
+`node tests/odds.test.js` (7), `node tests/variants.test.js` (14), `node tests/online.test.mjs` (6), run 2026-10-27;
+`node tests/house.test.js` (9) added 2026-10-28.
