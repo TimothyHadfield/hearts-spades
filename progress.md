@@ -2,7 +2,7 @@
 
 ## START HERE
 Read order: this file → CLAUDE.md → docs/rules-check.md → docs/ideas.md → chat.md.
-Last updated: 2026-10-27 (improvement pass: variants, Undo/Replay, kits; builder agent).
+Last updated: 2026-10-28 (wave 3: Spades house rules, Videos, Slow speed, iPhone SE fixes; builder agent).
 
 ## Goal right now
 Hearts and Spades in one site. Play against measured computers, use study helpers, play online with friends, and keep score at a real table. Phase 1 and phase 2 of the games brief are both done.
@@ -19,8 +19,9 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 | Lab | Done: strength tables, run your own matches |
 | Online | Done via the shared `_online` layer (Firebase th-board-games, game IDs `hearts`/`spades`). Rooms with codes; empty seats played by computers |
 | Heavy maths | Runs in a Web Worker (js/worker.js through js/think.js); falls back to the page |
-| Tests | hearts 20, spades 22, odds 7, variants 14, online 6, fx 9, layout ~147–150 (count varies run to run; Playwright, WebKit + Chromium): all pass (2026-10-27). `node tools/pwa-check.mjs --engine chromium` 18/18 |
+| Tests | hearts 20, spades 22, odds 7, variants 14, house 9, online 6, fx 9, layout 209 (WebKit; `ONLY=se,phone` runs some sizes): all pass (2026-10-28). `node tools/pwa-check.mjs --engine chromium` 18/18 |
 | Improvement pass (2026-10-27) | Done, live at 74703b9. Hearts 3/4/5 players (start panel), Black Maria + Spot Hearts (Settings "Point cards"); Spades Whiz/Mirror/Suicide (Settings "Bidding"); Undo (card or bid), Replay hand (same deal), trick-by-trick review; My stats + Daily game (`_profile` 1.0.1, separate `profile:hearts` / `profile:spades`); guided first Hearts hand + rules sheets (`_coach`); home-screen install + offline (`_pwa` 1.1.0); laptop New game panel scaled up (zoom 1.25 / 1.45) |
+| Wave 3 (2026-10-28) | Done. Spades Settings: Jokers, 2♠ high, Team minimum 4 (Pagat; off by default, ? help each). Hearts Game to 50/75/100/150. Rules sheets: "Videos" tab (4 YouTube links each, oEmbed-checked). Computer speed Slow/Normal/Fast. iPhone SE: trick card no longer covers your won pile/points (the old flaky layout check was a real bug); Settings no longer 372 px wide at 320. Ladder with all 3 Spades rules on (to 300): Medium beats Easy 91% (400 games), Hard beats Medium 74.2% (120) |
 | Computer ladder (whole games, 2026-10-27) | Spades: Medium beats Easy 87.5%, Hard beats Medium 90.2%. Hearts 4p (2 v 2 seats): Medium 98.3% vs Easy, Hard 71.5% vs Medium; 3p: Medium 90.7% / Hard 75% (fair 33%); 5p: Medium 92% / Hard 64.2% (fair 40%). `tools/sim-hearts-games.js` |
 | Visibility pass | Done 2026-10-27: trick 64→75 px phone, 48→54 SE, 44→52 landscape, 88→105 laptop, 99→118 at 1440; side seats raised (27% phone, 24% SE) so the trick never covers names/bid lines; your trick card on top so all 4 corner indexes show; moon/make-bid chip moved to felt's bottom-right; seat lines 12.5 px phone / 15 px laptop; Hearts point cards 24 px phone. Shots + audit: scratchpad `vis/hearts-spades/` (before/, after/, audit.md) |
 | Edge-case pass | Done 2026-10-20: 58 weird scenarios listed, about 49 run (online ones not), 10 failed, all fixed (table below) |
@@ -77,7 +78,8 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 | Any button | `tap` (Button clicks) | — |
 
 ## Traps
-- **Kits re-copied 2026-10-27 (kitfix):** game-coach 1.1.0 (rules tabs wrap instead of scrolling sideways; a note beside a tall target keeps title + 2 lines + buttons) and game-pwa 1.3.0 (`data-extra` on the pwa.js tag caches files loaded later by script). Copies stay byte-identical to `../_coach` / `../_pwa`. `tests/layout.test.mjs` fails 1 random "trick N: trick clear of seats" check on the iPhone SE size, before and after the re-copy (flaky, not the kits).
+- **Extra card numbers (2026-10-28):** 52 = Little Joker, 53 = Big Joker, 54 = the high 2♠ (ranks 14/15/13, suit spades) in `js/cards.js`. Spades deals use `Spades.deckFor(opts)`, never `C.deck()`; each hand stores `h.deck`, and AI/tracker loops go over `h.deck` (not 0..51). `played` arrays are 55 long. Hearts never sees these cards.
+- **Kits re-copied 2026-10-27 (kitfix):** game-coach 1.1.0 and game-pwa 1.3.0; copies stay byte-identical to `../_coach` / `../_pwa`. The old random SE "trick clear of seats" failure was real (fixed 2026-10-28: your long won pile/point fan reached your trick card; `--wmax`/`--pmax` caps on `.seat.bottom`); the layout test now has 3 fixed "long piles" deals.
 - **online.js cache stamp (2026-10-27):** every import of `js/online.js` uses `?v=a3d0418b`, the `_online` content stamp. After a re-copy: put the new stamp from `node ../_online/tools/stamp.mjs` there, bump the importing file's `?v=` (and pwa.js `data-version`), then `node ../_online/tools/stamp.mjs --check .` must say OK.
 - **OneDrive locks files**: python http.server on the OneDrive folder gives random 404s for JS files. For testing, serve a copy outside OneDrive (the scratchpad `hs-site/` on port 18474).
 - **Chrome-engine phone-view needs 127.0.0.1**, not localhost (it tries IPv6 first).
@@ -111,6 +113,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Hearts pass: passed cards wait face down in front of each passer, then slide as backs to the receiver; your received cards flip up when they land.
 - Spades won tricks alternate crosswise (every other trick turned 90°).
 - Improvement pass (2026-10-27, Tim didn't pick): 5-player seats "Far left"/"Far right" (FL/FR in tight spots); 3/5 players pass left, right, keep; Black Maria keeps the moon rule (43); Spot Hearts keeps the target at 100; online stays 4-player standard; Daily = Hearts to 50 / Spades to 200 vs Medium, no Undo or Replay; ratings Hearts 1200/1900/2060, Spades 1200/1540/1930 from measured win rates; Undo button sits in the prompt row, Replay in the hand summary; Spades Cutthroat and 2-player not built.
+- Wave 3 (2026-10-28, Tim didn't pick): Jokers follow Pagat/Barmore (2♣ and 2♥ out, not 2♦); the Big Joker is drawn in red, the Little in black, "JOKER" down the corners (original art); team minimum only with Standard bidding; Hearts "custom" target = 50/75/100/150 buttons (no typed number); house rules stay offline (online rooms standard); videos: Riffle Shuffle & Roll, Puzzling Games, Play-In Games ×2 (Hearts); How Games Work, Spielregeln TV, Play-In Games, Trickster Cards (Spades); no 5-bag penalty (not on Pagat).
 - Visibility (2026-10-27, Tim didn't pick): side seats sit high; your trick card overlaps Across's (yours on top); moon/make-bid chip in the felt's bottom-right corner; on phone the side seats' point cards sit beside their tricks (row, not column).
 
 ## NOT verified
@@ -121,6 +124,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Edge pass: online scenarios (two people passing at once, disconnect mid-pass, P1–P3, P6, S8) not run. Pass slide and waiting pass piles checked in WebKit at 393 only; online "my passed cards wait face down" path reasoned, not run.
 - Visibility pass (2026-10-27): no real iPhone; online table not shot; Hearts point cards beside won piles still small (24 px phone, totals shown as "♥ N"); at SE the corner chip can sit near your trick card (test checks it never covers an index).
 - Improvement pass: real iPhone install/offline not tried; WebKit offline cold open fails in the kit's own check (same for Hold'em); the "replayed last hand records the game" fix is reasoned, not run; the guided Hearts hand was shot at step 1 only (later steps not walked through); Back pressed within ~30 ms of opening Rules/My stats from the game menu could close the new panel (timing race, not seen).
+- Wave 3: a whole joker game played only through the worker in WebKit (one hand, 0 errors) and node self-play; the joker faces seen at 393 only in a fan (not in a trick or the tracker sheet); videos' content not watched (titles/channels checked via oEmbed).
 - Design pass checked at 393x659 and 1440x900 only; 1280x720 laptop and iPhone SE heights not screenshotted (sizes are clamps by vh/vw, reasoned to fit).
 
 ## Rejected / parked

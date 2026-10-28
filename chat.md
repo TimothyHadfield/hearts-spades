@@ -1,5 +1,12 @@
 # Hearts & Spades — chat log
 
+## 2026-10-28 — wave 3 "just make the games better" (builder agent)
+- **Asked (Tim):** "Go ahead and go through each project adding features or changing things that you think should be changed ... common house rules ... links to youtube videos ... practical settings ... layout better on iphone". Brief: missing house rules, Videos, practical settings, iPhone sizes, the flaky SE layout check.
+- **Audit:** Hearts J♦ −10, points on first trick, Q♠ breaks hearts, moon choice, Spades target, no bag penalty, spades any time already existed; tap-twice to play, animations on/off and remembered setup too.
+- **Built:** Spades Jokers, 2♠ high, Team minimum 4 (engine + computers + joker card art + tracker); Hearts Game to 75/150; Videos tab in both rules sheets; Slow computer speed; iPhone SE trick-vs-your-piles fix; Settings wrap at 320.
+- **Verified:** tests/house.test.js 9 (7 failed on old engine, 2 AI ones failed on old AI); layout 209 (new fixed "long piles" checks failed 4 on old CSS); other suites pass; pwa-check Chromium 18/18; ladder with all 3 rules: Medium 91% vs Easy, Hard 74.2% vs Medium; a joker hand played through the worker in WebKit (0 errors); shots at 393, 320, 659×393, 1280, 1440.
+- **Open:** see NOT verified (joker faces only seen in a fan; videos not watched).
+
 ## 2026-10-27 — improvement pass (builder agent)
 - **Asked:** per-game brief: fix listed problems; check the computer ladder; rivals' variants and player counts; Undo + replay/review; `_coach`, `_profile`, `_pwa` kits; laptop setup panel lost in the felt; "Pass 3 cards left" printed over the deck.
 - **Built (5 pushes, 7bf225b → 74703b9):** Hearts 3/5 players, Black Maria, Spot Hearts; Spades Whiz/Mirror/Suicide; deck fallback; Undo, Replay, trick review; My stats, Daily, guided first hand, rules sheets, install/offline; laptop panel zoom; review fixes (FL/FR initials, blind nil in Mirror/Suicide, replay-final-hand record).
