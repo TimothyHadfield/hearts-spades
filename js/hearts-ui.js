@@ -493,7 +493,7 @@
     if (!CO || !HC || S || R || CO.offered(HC.ID) || !root.App || root.App.tab !== "hearts") return;
     setTimeout(() => {
       if (S || R || !root.App || root.App.tab !== "hearts") return;
-      CO.offer({ id: HC.ID, title: "New to Hearts?", text: "Play one guided hand against Easy computers.", yes: "Teach me", no: "No thanks", onYes: () => root.App.startTutorial() });
+      CO.offer({ id: HC.ID, title: "New to Hearts?", text: "Play one guided hand against Easy computers.", yes: "Teach me", no: "No thanks", onYes: () => root.App.startTutorial(), place: "auto", avoid: ['[data-act="deal"]'] });
     }, 400);
   }
 
