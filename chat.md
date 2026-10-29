@@ -85,3 +85,5 @@
   - Each fix's check was first seen failing.
   - Tests 20/22/7/6/9 pass.
 - **Open:** online edge scenarios not run.
+
+## 2026-10-28 — kit sweep (builder b1): `_coach` 1.2.0 ("New to Hearts?" offer `place:'auto'`, avoids Deal), `_pwa` 1.4.0 build 20261028b, Scorekeeper bid `<select>` themed (was a grey native box in WebKit); offer 0 px overlap at 3 sizes, settings 320 ok, all node suites + layout 207 + pwa-check 18/18 WebKit; live 49b5d81.
