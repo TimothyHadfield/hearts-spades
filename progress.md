@@ -104,6 +104,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Test account: none needed (online rooms are anonymous with a typed name).
 
 ## Decisions
+- 2026-11-25 Catan lessons (9dab648): the game's last trick stays 4.5 s (2.3 fast / 6 slow, `Table.finaleMs`) with the game winner's seat glowing (`.seat.champ`) and "You win!" in the prompt before the end pad; Spades first dealer random vs computers + online (Daily fixed). Checked: own seat shows the same stats as others, no page scroll 393x659 / 1280x720, Hearts all cards played so nothing hidden at the end.
 - Seats: 0 you (bottom), 1 left, 2 across, 3 right; Spades teams are 0+2 and 1+3.
 - Hard AI = Monte Carlo determinization; runs in a worker so taps never freeze.
 - Online names are drawn relative to your seat; between hands any person presses "Next hand".
