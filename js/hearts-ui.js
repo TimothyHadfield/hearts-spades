@@ -111,6 +111,7 @@
       // Trick complete: show all four, then sweep them to the winner.
       const my = gen;
       S.showTrick = h.lastTrick;
+      S.finale = !!S.game.over;   // the game's last trick stays a few seconds, the winner's seat glowing
       S.busy = true;
       render();
       setTimeout(() => {
@@ -118,12 +119,12 @@
         S.collecting = true; render();
         setTimeout(() => {
           if (my !== gen) return;
-          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.finale = false;
           if (h.phase === "done") onHandDone();
           updateMoon();
           step();
         }, 380);
-      }, { fast: 550, slow: 1500 }[cfg().speed] || 950);
+      }, S.finale ? T.finaleMs(cfg().speed) : { fast: 550, slow: 1500 }[cfg().speed] || 950);
     } else step();
   }
 
@@ -286,6 +287,7 @@
         pos, seat: s, name: NAMES[T.rel(s, ME, N)], score: g.scores[s], sub: seatSub(h, s), cpu: !!R && isCpu(s),
         turn: h.phase === "play" && h.turn === s && !S.busy, count: s !== ME ? h.hands[s].length - (passing && h.passes[s] ? 3 : 0) : null,
         won: piles.n[s], pts: piles.pts[s], deal: S.dealAnim, passed: passing && !!h.passes[s],
+        champ: !!S.finale && !!S.showTrick && !!g.winners && g.winners.includes(s),
       });
     }
 
@@ -348,7 +350,10 @@
   function promptHTML() {
     const g = S.game, h = g.hand;
     let msg = "", btn = "";
-    if (h.phase === "pass") {
+    if (S.finale && S.showTrick && g.winners) {
+      const n = h.hands.length, t = S.showTrick;
+      msg = `<b>${g.winners.includes(ME) ? (g.winners.length > 1 ? "You tie for the win" : "You win!") : T.esc(NAMES[T.rel(g.winners[0], ME, n)]) + " wins"}</b><span class="small">Last trick: ${T.esc(NAMES[T.rel(t.winner, ME, n)])}${t.points ? ` · ${t.points} pt${t.points > 1 ? "s" : ""}` : ""}</span>`;
+    } else if (h.phase === "pass") {
       if (!h.passes[ME]) {
         msg = `<b>Pick 3 to pass ${H.passName(h.passOffset, h.hands.length)}</b><span class="small">${S.sel.size}/3 chosen${S.hint && S.hint.pass ? " · green = suggested" + "" : ""}</span>`;
         btn = `<button class="btn warm" data-act="pass" ${S.sel.size === 3 ? "" : "disabled"}>Pass</button>`;
@@ -688,18 +693,18 @@
       const done = h.lastTrick;
       for (const t of done.cards) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);
       const my = gen;
-      S.showTrick = done; S.busy = true; render();
+      S.showTrick = done; S.busy = true; S.finale = !!g.over; render();
       setTimeout(() => {
         if (my !== gen || !S) return;
         S.collecting = true; render();
         setTimeout(() => {
           if (my !== gen || !S) return;
-          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.finale = false;
           if (S.game.hand.phase === "done") onHandDone();
           updateMoon();
           render();
         }, 380);
-      }, { fast: 550, slow: 1500 }[cfg().speed] || 950);
+      }, S.finale ? T.finaleMs(cfg().speed) : { fast: 550, slow: 1500 }[cfg().speed] || 950);
       return;
     }
     for (const t of h.trick) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);

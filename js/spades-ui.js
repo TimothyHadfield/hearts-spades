@@ -54,6 +54,7 @@
     quit();
     gen++;
     S = blank(S_.apply(null, { type: "new", opts: optsFromCfg() }), cfg().level);
+    S.game.dealer = Math.floor(Math.random() * 4); // random first dealer, like a real table (Daily keeps its fixed start)
     dealNext();
   }
   function dealNext(again) {
@@ -112,17 +113,17 @@
       S.tricks.push(h.lastTrick);
       if (h.phase === "done") S.undo = null;
       const my = gen;
-      S.showTrick = h.lastTrick; S.busy = true; render();
+      S.showTrick = h.lastTrick; S.busy = true; S.finale = !!S.game.over; render();
       setTimeout(() => {
         if (my !== gen) return;
         S.collecting = true; render();
         setTimeout(() => {
           if (my !== gen) return;
-          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.finale = false;
           if (h.phase === "done") onHandDone(); else updateMake();
           step();
         }, 380);
-      }, { fast: 550, slow: 1500 }[Store.data.hearts.speed] || 950);
+      }, S.finale ? T.finaleMs(Store.data.hearts.speed) : { fast: 550, slow: 1500 }[Store.data.hearts.speed] || 950);
     } else step();
   }
 
@@ -278,7 +279,7 @@
       const sub = h.phase === "bid" && h.bids[s] === null ? (h.bidTurn === s ? "bidding…" : "") : `${bidTxt(h, s)} · won ${h.tricks[s]}`;
       seats += T.seatHTML({ pos, seat: s, name: NAMES[T.rel(s, ME)], score: "", sub, cpu: !!R && isCpu(s),
         turn: a && a.seats ? false : a && a.seat === s && !S.busy, count: s !== ME ? h.hands[s].length : null,
-        won: piles.n[s], deal: S.dealAnim && !S.flipAll, cross: true });
+        won: piles.n[s], deal: S.dealAnim && !S.flipAll, cross: true, champ: !!S.finale && !!S.showTrick && g.over && s % 2 === g.winner });
     }
 
     // On a phone the score pad sits below the table, so every seat, pile and bid stays in view.
@@ -339,7 +340,9 @@
   function promptHTML(myAct) {
     const g = S.game, h = g.hand;
     let msg = "", btn = "";
-    if (myAct === "bid") {
+    if (S.finale && S.showTrick && g.over) {
+      msg = `<b>${g.winner === US ? "You win!" : "They win"}</b><span class="small">Last trick: ${T.esc(nm(S.showTrick.winner))} · Us ${g.scores[US]} · Them ${g.scores[THEM]}</span>`;
+    } else if (myAct === "bid") {
       if (!S.looked) msg = `<b>Blind nil?</b><span class="small">Decide before you look ${T.help("blindNil")}</span>`;
       else {
         msg = `<b>Your bid</b><span class="small">${[1, 2, 3].map((k) => (ME + k) % 4).filter((s) => h.bids[s] !== null).map((s) => T.esc(nm(s)) + " " + bidTxt(h, s).replace("Bid ", "")).join(" · ") || "You bid first"}</span>`;
@@ -645,17 +648,17 @@
       const done = h.lastTrick;
       for (const t of done.cards) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);
       const my = gen;
-      S.showTrick = done; S.busy = true; render();
+      S.showTrick = done; S.busy = true; S.finale = !!g.over; render();
       setTimeout(() => {
         if (my !== gen || !S) return;
         S.collecting = true; render();
         setTimeout(() => {
           if (my !== gen || !S) return;
-          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false;
+          S.showTrick = null; S.collecting = false; S.freshTrick.clear(); S.busy = false; S.finale = false;
           if (S.game.hand.phase === "done") onHandDone(); else updateMake();
           render();
         }, 380);
-      }, { fast: 550, slow: 1500 }[Store.data.hearts.speed] || 950);
+      }, S.finale ? T.finaleMs(Store.data.hearts.speed) : { fast: 550, slow: 1500 }[Store.data.hearts.speed] || 950);
       return;
     }
     for (const t of h.trick) if (!oh.trick.some((x) => x.card === t.card)) S.freshTrick.add(t.card);

@@ -132,7 +132,7 @@
     const plate = `<div class="plate tbl-plate">${o.cpu ? `<span class="cpu" aria-label="computer">${CPU_ICON}</span>` : ""}` +
       `<span class="seat-name">${esc(o.name)}</span>${o.score !== "" && o.score != null ? `<b class="seat-score">${esc(o.score)}</b>` : ""}</div>`;
     const info = `<div class="seat-info">${plate}${o.sub ? `<span class="seat-sub">${o.sub}</span>` : ""}</div>`;
-    return `<div class="seat ${o.pos}${o.turn ? " turn" : ""}" data-seat="${o.seat}">` +
+    return `<div class="seat ${o.pos}${o.turn ? " turn" : ""}${o.champ ? " champ" : ""}" data-seat="${o.seat}">` +
       (o.pos !== "bottom" ? backsHTML(o.count || 0, r, o.deal) : "") +
       `<div class="seat-front">${info}${wonHTML(o.seat, o.won || 0, o.pts, o.cross)}${o.passed ? passPileHTML(o.seat) : ""}</div></div>`;
   }
@@ -366,5 +366,9 @@
     return `hsl(${hue.toFixed(0)} 70% 62%)`;
   }
 
-  root.Table = { esc, POS, LAYOUT, posOf, rel, HELP, help, openSheet, closeSheet, initSheet, toast, seatHTML, passFly, wonPiles, deckHTML, restDeckHTML, runDeck, trickHTML, handHTML, fitHand, trackerData, stripHTML, trackerDetailHTML, scaleColor, CPU_ICON };
+  /** How long the last trick of the whole game stays on the table (winner's seat glowing) before the
+   *  end pad: the ending is a moment, not a cut (Catan lesson, 2026-11-25). */
+  const finaleMs = (speed) => ({ fast: 2300, slow: 6000 }[speed] || 4500);
+
+  root.Table = { esc, finaleMs, POS, LAYOUT, posOf, rel, HELP, help, openSheet, closeSheet, initSheet, toast, seatHTML, passFly, wonPiles, deckHTML, restDeckHTML, runDeck, trickHTML, handHTML, fitHand, trackerData, stripHTML, trackerDetailHTML, scaleColor, CPU_ICON };
 })(typeof self !== "undefined" ? self : globalThis);

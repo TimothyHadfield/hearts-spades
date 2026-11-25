@@ -87,6 +87,7 @@
       const opts = {};
       for (const k of keys) if (o[k] !== undefined) opts[k] = o[k];
       const g = Sp.apply(null, { type: "new", opts });
+      g.dealer = Math.floor(rng() * 4) % 4; // random first dealer, like a real table
       return { g: Sp.apply(g, { type: "deal", deck: deckFrom(rng) }), humans: seats.map((x, i) => (x.kind === "human" ? i : -1)).filter((i) => i >= 0), names: seats.map((x) => x.name), level: LEVELS.includes(o.level) ? o.level : "medium" };
     },
     apply(s, seat, a, rng) {
