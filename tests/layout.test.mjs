@@ -28,13 +28,14 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const BASE = `http://127.0.0.1:${server.address().port}/`;
 
-// tw: trick card width floor; sub: seat bid/points text floor; pw: Hearts point card width floor
+// tw: trick card width floor; sub: seat bid/points text floor; pw: Hearts point card width floor;
+// ix: [rank font, suit size] floor for every card's corner index, in your hand and in the trick
 const SIZES = {
-  phone: { ctx: { ...pw.devices["iPhone 15"], viewport: { width: 393, height: 659 } }, tw: 72, sub: 12, pw: 24 },
-  se: { ctx: { ...pw.devices["iPhone SE"], viewport: { width: 320, height: 568 } }, tw: 52, sub: 12, pw: 22 },
-  land: { ctx: { ...pw.devices["iPhone 15"], viewport: { width: 659, height: 393 } }, tw: 50, sub: 12, pw: 22 },
-  laptop: { ctx: { viewport: { width: 1280, height: 800 } }, tw: 100, sub: 15, pw: 34 },
-  wide: { ctx: { viewport: { width: 1440, height: 900 } }, tw: 110, sub: 15, pw: 36 },
+  phone: { ctx: { ...pw.devices["iPhone 15"], viewport: { width: 393, height: 659 } }, tw: 72, sub: 12, pw: 24, ix: [12, 9] },
+  se: { ctx: { ...pw.devices["iPhone SE"], viewport: { width: 320, height: 568 } }, tw: 52, sub: 12, pw: 22, ix: [12, 9] },
+  land: { ctx: { ...pw.devices["iPhone 15"], viewport: { width: 659, height: 393 } }, tw: 50, sub: 12, pw: 22, ix: [12, 9] },
+  laptop: { ctx: { viewport: { width: 1280, height: 800 } }, tw: 100, sub: 15, pw: 34, ix: [18, 14] },
+  wide: { ctx: { viewport: { width: 1440, height: 900 } }, tw: 110, sub: 15, pw: 36, ix: [18, 14] },
 };
 
 // Deal, then play the engine forward (first legal card each turn) to trick `upto`, and show the trick
@@ -62,6 +63,16 @@ const HEAVY = (kind, seed) => `(() => { const U = ${kind === "hearts" ? "HeartsU
   if (U === HeartsUI) S.moon = { seat: 2, chance: 0.34 }; else S.make = { bid: 0.54, nil: [0, 0, 0, 0] };
   U.render(); return g.hand.trickNo; })()`;
 
+// Corner index size on real screen pixels (fit pass 2026-11-27): the card face is a 250-wide viewBox, so
+// the rank's font size on screen is its font-size attribute x card width / 250 (the "10" is drawn smaller,
+// so it is the one that sets the floor), and the suit under it is its <use> width x card width / 250.
+// Returns the smallest rank font and suit size over the given card holders (.hc or .slot).
+const INDEX = `((els) => { let rank = 99, pip = 99, worst = "";
+  for (const e of els) { const k = e.offsetWidth / 250, t = e.querySelector("svg text"), u = t && t.nextElementSibling; if (!t) continue;
+    const r = +t.getAttribute("font-size") * k, p = u ? +u.getAttribute("width") * k : 99;
+    if (r < rank) { rank = r; worst = t.textContent; } if (p < pip) pip = p; }
+  return { rank: +rank.toFixed(1), pip: +pip.toFixed(1), worst }; })`;
+
 // For the 13-card check: a fresh deal, nothing played.
 const MEASURE = `(() => {
   const v = document.querySelector(".view.active"), R = (e) => e.getBoundingClientRect();
@@ -85,6 +96,14 @@ const MEASURE = `(() => {
   const chip = v.querySelector(".moon"); out.chip = !!chip;
   if (chip) for (const s of slots) { const txt = s.querySelector("svg text"); if (txt && hit(R(chip), R(txt), 0)) out.errs.push("chip covers index of " + s.className); }
   const sub = v.querySelector(".seat-sub"); out.sub = sub ? parseFloat(getComputedStyle(sub).fontSize) : 0;
+  out.tidx = ${INDEX}(slots);
+  // every seat: name and score text size, name not cut short, plate inside the felt
+  const fs = (e) => (e ? parseFloat(getComputedStyle(e).fontSize) : 99);
+  out.seatFs = 99; out.cut = [];
+  for (const s of v.querySelectorAll(".seat")) { const nm = s.querySelector(".seat-name");
+    out.seatFs = Math.min(out.seatFs, fs(nm), fs(s.querySelector(".seat-score")), fs(s.querySelector(".seat-sub")));
+    if (nm && nm.scrollWidth > nm.clientWidth + 1) out.cut.push(nm.textContent);
+    const p = R(s.querySelector(".plate")); if (p.left < felt.left - 1 || p.right > felt.right + 1 || p.top < felt.top - 1) out.errs.push("plate of " + s.className + " outside felt"); }
   const wp = v.querySelector(".wpts .wp"); out.pw = wp && wp.offsetParent ? wp.offsetWidth : null;
   out.ox = document.documentElement.scrollWidth > innerWidth + 1; out.oy = document.documentElement.scrollHeight > innerHeight + 1;
   return out; })()`;
@@ -93,7 +112,7 @@ const HAND = `(() => { const v = document.querySelector(".view.active"), bad = [
   for (const c of cards) { const txt = c.querySelector("svg text"), pip = txt && txt.nextElementSibling;
     for (const e of [txt, pip]) { const q = e.getBoundingClientRect(), t = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
       if (!t || !c.contains(t)) bad.push(c.dataset.card); } }
-  return { n: cards.length, bad: [...new Set(bad)] }; })()`;
+  return { n: cards.length, bad: [...new Set(bad)], ...${INDEX}(cards) }; })()`;
 
 let pass = 0, fail = 0;
 const check = (name, ok, info) => { if (ok) pass++; else { fail++; console.log("FAIL " + name + (info ? "\n  " + info : "")); } };
@@ -113,6 +132,7 @@ for (const [size, cfg] of Object.entries(SIZES)) {
     await page.waitForTimeout(1200);
     const hand = await page.evaluate(HAND);
     check(`${size} ${kind}: 13-card hand shows every rank and suit`, hand.n === 13 && !hand.bad.length, `${hand.n} cards, hidden: ${hand.bad.join(",")}`);
+    check(`${size} ${kind}: hand rank >= ${cfg.ix[0]}px, suit >= ${cfg.ix[1]}px`, hand.rank >= cfg.ix[0] && hand.pip >= cfg.ix[1], `rank ${hand.rank} (${hand.worst}), suit ${hand.pip}`);
     if (kind === "hearts") {   // passing: 3 neighbouring cards picked (lifted) must still show their corners
       await page.evaluate(() => { const S = HeartsUI.state; S.sel = new Set(S.game.hand.hands[0].slice(5, 8)); HeartsUI.render(); });
       await page.waitForTimeout(300);
@@ -129,6 +149,8 @@ for (const [size, cfg] of Object.entries(SIZES)) {
       check(`${id}: trick cards >= ${cfg.tw}px`, m.tw >= cfg.tw, `tw ${m.tw}`);
       check(`${id}: trick clear of seats, indexes on top`, !m.errs.length, m.errs.join("\n  "));
       check(`${id}: seat line >= ${cfg.sub}px`, m.sub >= cfg.sub, `sub ${m.sub}`);
+      check(`${id}: trick rank >= ${cfg.ix[0]}px, suit >= ${cfg.ix[1]}px`, m.tidx.rank >= cfg.ix[0] && m.tidx.pip >= cfg.ix[1], `rank ${m.tidx.rank} (${m.tidx.worst}), suit ${m.tidx.pip}`);
+      check(`${id}: seat names/scores/bids >= 12px, names whole`, m.seatFs >= 12 && !m.cut.length, `smallest ${m.seatFs}, cut: ${m.cut.join(",")}`);
       if (kind === "hearts" && m.pw != null) check(`${id}: point cards >= ${cfg.pw}px`, m.pw >= cfg.pw, `pw ${m.pw}`);
       check(`${id}: no page scroll`, !m.ox && !m.oy, JSON.stringify({ ox: m.ox, oy: m.oy }));
     }

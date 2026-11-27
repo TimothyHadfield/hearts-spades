@@ -1,5 +1,12 @@
 # Hearts & Spades — chat log
 
+## 2026-11-27 — fit pass (builder agent)
+- **Asked (Tim, all games):** "the cards ... are really small and the numbers are hard to see ... make sure the user can actually see the full screen and everything". Scope: spacing/sizing only.
+- **Measured before:** 13-card hand at 320x568 had 50 px cards (suit under the rank 8.4 px); sideways 659x393 had 44 px cards ("10" drawn at 10.6 px, suit 7.4 px) with ~170 px of empty felt each side of the fan; trick suits 8.7 px sideways. Phone, laptop, wide, seat names/scores/bids (12-18 px, none cut) were already fine.
+- **Built:** hand cards 54 px at SE height and sideways, trick 54 px sideways (trick moved to 57% / 22 px so Partner's bid line stays clear). Cache 20261127a.
+- **Verified:** layout.test.mjs gained corner-index size (rank >= 12 px, suit >= 9 px phone sizes; 18/14 laptop) and seat name/score/bid size + whole-name checks: 8 failed on old CSS, 259/259 pass after (WebKit, 5 sizes). Other suites green. After shots at 5 sizes + Spades bid panel at 320 and sideways (panel fits, no page scroll).
+- **Open:** real iPhone; 5-player Hearts and long online names not in the size checks.
+
 ## 2026-10-28 — wave 3 "just make the games better" (builder agent)
 - **Asked (Tim):** "Go ahead and go through each project adding features or changing things that you think should be changed ... common house rules ... links to youtube videos ... practical settings ... layout better on iphone". Brief: missing house rules, Videos, practical settings, iPhone sizes, the flaky SE layout check.
 - **Audit:** Hearts J♦ −10, points on first trick, Q♠ breaks hearts, moon choice, Spades target, no bag penalty, spades any time already existed; tap-twice to play, animations on/off and remembered setup too.

@@ -2,7 +2,7 @@
 
 ## START HERE
 Read order: this file → CLAUDE.md → docs/rules-check.md → docs/ideas.md → chat.md.
-Last updated: 2026-10-28 (wave 3: Spades house rules, Videos, Slow speed, iPhone SE fixes; builder agent).
+Last updated: 2026-11-27 (fit pass: bigger hand cards at SE height and sideways; builder agent).
 
 ## Goal right now
 Hearts and Spades in one site. Play against measured computers, use study helpers, play online with friends, and keep score at a real table. Phase 1 and phase 2 of the games brief are both done.
@@ -19,10 +19,11 @@ Hearts and Spades in one site. Play against measured computers, use study helper
 | Lab | Done: strength tables, run your own matches |
 | Online | Done via the shared `_online` layer (Firebase th-board-games, game IDs `hearts`/`spades`). Rooms with codes; empty seats played by computers |
 | Heavy maths | Runs in a Web Worker (js/worker.js through js/think.js); falls back to the page |
-| Tests | hearts 20, spades 22, odds 7, variants 14, house 9, online 6, fx 9, layout 209 (WebKit; `ONLY=se,phone` runs some sizes): all pass (2026-10-28). `node tools/pwa-check.mjs --engine chromium` 18/18 |
+| Tests | hearts 20, spades 22, odds 7, variants 14, house 9, online 6, fx 9, layout 259 (WebKit; `ONLY=se,phone` runs some sizes): all pass (2026-11-27). `node tools/pwa-check.mjs --engine chromium` 18/18 |
 | Improvement pass (2026-10-27) | Done, live at 74703b9. Hearts 3/4/5 players (start panel), Black Maria + Spot Hearts (Settings "Point cards"); Spades Whiz/Mirror/Suicide (Settings "Bidding"); Undo (card or bid), Replay hand (same deal), trick-by-trick review; My stats + Daily game (`_profile` 1.0.1, separate `profile:hearts` / `profile:spades`); guided first Hearts hand + rules sheets (`_coach`); home-screen install + offline (`_pwa` 1.1.0); laptop New game panel scaled up (zoom 1.25 / 1.45) |
 | Wave 3 (2026-10-28) | Done. Spades Settings: Jokers, 2♠ high, Team minimum 4 (Pagat; off by default, ? help each). Hearts Game to 50/75/100/150. Rules sheets: "Videos" tab (4 YouTube links each, oEmbed-checked). Computer speed Slow/Normal/Fast. iPhone SE: trick card no longer covers your won pile/points (the old flaky layout check was a real bug); Settings no longer 372 px wide at 320. Ladder with all 3 Spades rules on (to 300): Medium beats Easy 91% (400 games), Hard beats Medium 74.2% (120) |
 | Computer ladder (whole games, 2026-10-27) | Spades: Medium beats Easy 87.5%, Hard beats Medium 90.2%. Hearts 4p (2 v 2 seats): Medium 98.3% vs Easy, Hard 71.5% vs Medium; 3p: Medium 90.7% / Hard 75% (fair 33%); 5p: Medium 92% / Hard 64.2% (fair 40%). `tools/sim-hearts-games.js` |
+| Fit pass 2026-11-27 | Done. Hand cards 50→54 px at iPhone SE height and 44→54 px sideways, sideways trick 52→54 px (trick at 57%, `--tdy` 22 px): every corner index now rank >= 12 px (the "10" was 10.6 sideways) and suit >= 9 px (was 7.4). layout.test.mjs checks index sizes and seat name/score/bid sizes (259 checks). Other sizes were already fine |
 | Visibility pass | Done 2026-10-27: trick 64→75 px phone, 48→54 SE, 44→52 landscape, 88→105 laptop, 99→118 at 1440; side seats raised (27% phone, 24% SE) so the trick never covers names/bid lines; your trick card on top so all 4 corner indexes show; moon/make-bid chip moved to felt's bottom-right; seat lines 12.5 px phone / 15 px laptop; Hearts point cards 24 px phone. Shots + audit: scratchpad `vis/hearts-spades/` (before/, after/, audit.md) |
 | Edge-case pass | Done 2026-10-20: 58 weird scenarios listed, about 49 run (online ones not), 10 failed, all fixed (table below) |
 | Sound & effects | Done 2026-10-20: `js/fx.js` (byte copy of `_fx/fx.js`, never edit) + `js/game-fx.js` (this site's event→sound map). Settings → "Sound & effects". Map below |
@@ -104,6 +105,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Test account: none needed (online rooms are anonymous with a typed name).
 
 ## Decisions
+- 2026-11-27 Fit pass: card size floor = corner rank >= 12 px and suit >= 9 px on phones (card width >= 54 px, since the "10" is drawn at 60/250 of the card); sideways the hand stays one fan row (it had spare width), cards just grow.
 - 2026-11-25 Catan lessons (9dab648): the game's last trick stays 4.5 s (2.3 fast / 6 slow, `Table.finaleMs`) with the game winner's seat glowing (`.seat.champ`) and "You win!" in the prompt before the end pad; Spades first dealer random vs computers + online (Daily fixed). Checked: own seat shows the same stats as others, no page scroll 393x659 / 1280x720, Hearts all cards played so nothing hidden at the end.
 - Seats: 0 you (bottom), 1 left, 2 across, 3 right; Spades teams are 0+2 and 1+3.
 - Hard AI = Monte Carlo determinization; runs in a worker so taps never freeze.
@@ -126,6 +128,7 @@ Every table render calls `GameFX.observe(kind, snapshot, el)`; `events()` diffs 
 - Visibility pass (2026-10-27): no real iPhone; online table not shot; Hearts point cards beside won piles still small (24 px phone, totals shown as "♥ N"); at SE the corner chip can sit near your trick card (test checks it never covers an index).
 - Improvement pass: real iPhone install/offline not tried; WebKit offline cold open fails in the kit's own check (same for Hold'em); the "replayed last hand records the game" fix is reasoned, not run; the guided Hearts hand was shot at step 1 only (later steps not walked through); Back pressed within ~30 ms of opening Rules/My stats from the game menu could close the new panel (timing race, not seen).
 - Wave 3: a whole joker game played only through the worker in WebKit (one hand, 0 errors) and node self-play; the joker faces seen at 393 only in a fan (not in a trick or the tracker sheet); videos' content not watched (titles/channels checked via oEmbed).
+- Fit pass (2026-11-27): WebKit headless only; 5-player Hearts and long online names not in the size checks; outer fan cards' bottom corners sit at the very screen bottom sideways (as before; indexes are at the top).
 - Design pass checked at 393x659 and 1440x900 only; 1280x720 laptop and iPhone SE heights not screenshotted (sizes are clamps by vh/vw, reasoned to fit).
 
 ## Rejected / parked
